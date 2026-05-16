@@ -1,3 +1,5 @@
+'use client';
+
 import { cn } from '@/lib/utils';
 import { StatusDot } from './status-badge';
 import type { Channel } from '@/lib/types';

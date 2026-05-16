@@ -86,7 +86,6 @@ export default function OverviewPage() {
               <AlertList
                 alerts={activeAlerts}
                 maxItems={5}
-                onAlertClick={() => {}}
               />
             </div>
           </div>

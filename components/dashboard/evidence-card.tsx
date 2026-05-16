@@ -1,3 +1,5 @@
+'use client';
+
 import { cn } from '@/lib/utils';
 import { StatusBadge } from './status-badge';
 import type { Evidence } from '@/lib/types';

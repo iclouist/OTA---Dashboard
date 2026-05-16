@@ -3,12 +3,15 @@
 import * as React from 'react';
 import { DashboardLayout } from '@/components/dashboard/layout';
 import { DataTable, Column } from '@/components/dashboard/data-table';
-import { FilterBar, FilterConfig } from '@/components/dashboard/filter-bar';
+import { FilterBar, FilterConfig, ToolbarSeparator } from '@/components/dashboard/filter-bar';
 import { StatusBadge } from '@/components/dashboard/status-badge';
+import { InlineKPI } from '@/components/dashboard/kpi-card';
 import { priceRecords, properties, channels } from '@/lib/mock-data';
 import type { PriceRecord } from '@/lib/types';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Download, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const filterConfig: FilterConfig[] = [
   { id: 'search', label: 'Search', type: 'search', placeholder: 'Search...' },
@@ -16,7 +19,7 @@ const filterConfig: FilterConfig[] = [
     id: 'property',
     label: 'Property',
     type: 'select',
-    options: properties.map((p) => ({ value: p.id, label: p.name })),
+    options: properties.slice(0, 5).map((p) => ({ value: p.id, label: p.name })),
   },
   {
     id: 'channel',
@@ -34,8 +37,6 @@ const filterConfig: FilterConfig[] = [
       { value: 'mismatch', label: 'Mismatch' },
     ],
   },
-  { id: 'stayDateFrom', label: 'From', type: 'date' },
-  { id: 'stayDateTo', label: 'To', type: 'date' },
 ];
 
 const columns: Column<PriceRecord>[] = [
@@ -44,50 +45,51 @@ const columns: Column<PriceRecord>[] = [
     header: 'Property',
     sortable: true,
     cell: (row) => (
-      <span className="text-sm font-medium text-foreground">
-        {row.propertyName}
-      </span>
+      <span className="font-medium text-foreground">{row.propertyName}</span>
     ),
   },
   {
     id: 'channel',
     header: 'Channel',
+    width: '100px',
     cell: (row) => (
-      <span className="text-sm text-muted-foreground">{row.channelName}</span>
+      <span className="text-muted-foreground">{row.channelName}</span>
     ),
   },
   {
     id: 'roomType',
-    header: 'Room Type',
+    header: 'Room',
     cell: (row) => (
-      <span className="text-sm text-muted-foreground">{row.roomType}</span>
+      <span className="text-muted-foreground">{row.roomType}</span>
     ),
   },
   {
     id: 'ratePlan',
-    header: 'Rate Plan',
+    header: 'Rate',
     cell: (row) => (
-      <span className="text-sm text-muted-foreground">{row.ratePlan}</span>
+      <span className="text-muted-foreground">{row.ratePlan}</span>
     ),
   },
   {
     id: 'stayDate',
     header: 'Stay Date',
+    width: '90px',
     sortable: true,
     accessorKey: 'stayDate',
     cell: (row) => (
-      <span className="text-sm text-muted-foreground">
-        {format(new Date(row.stayDate), 'MMM d, yyyy')}
+      <span className="tabular-nums text-muted-foreground">
+        {format(new Date(row.stayDate), 'MMM d')}
       </span>
     ),
   },
   {
     id: 'displayPrice',
-    header: 'Display Price',
+    header: 'Display',
+    width: '90px',
     sortable: true,
     accessorKey: 'displayPrice',
     cell: (row) => (
-      <span className="text-sm font-medium text-foreground">
+      <span className="tabular-nums font-medium text-foreground">
         {row.currency} {row.displayPrice.toLocaleString()}
       </span>
     ),
@@ -95,9 +97,10 @@ const columns: Column<PriceRecord>[] = [
   },
   {
     id: 'referencePrice',
-    header: 'Reference',
+    header: 'Ref',
+    width: '90px',
     cell: (row) => (
-      <span className="text-sm text-muted-foreground">
+      <span className="tabular-nums text-muted-foreground">
         {row.currency} {row.referencePrice.toLocaleString()}
       </span>
     ),
@@ -106,12 +109,13 @@ const columns: Column<PriceRecord>[] = [
   {
     id: 'delta',
     header: 'Delta',
+    width: '70px',
     sortable: true,
     accessorKey: 'deltaPercent',
     cell: (row) => (
       <span
         className={cn(
-          'text-sm font-medium',
+          'tabular-nums font-medium',
           row.deltaPercent === 0
             ? 'text-muted-foreground'
             : Math.abs(row.deltaPercent) > 15
@@ -130,19 +134,20 @@ const columns: Column<PriceRecord>[] = [
   {
     id: 'capturedAt',
     header: 'Captured',
+    width: '80px',
     sortable: true,
     accessorKey: 'capturedAt',
     cell: (row) => (
-      <span className="text-xs text-muted-foreground">
-        {formatDistanceToNow(new Date(row.capturedAt), { addSuffix: true })}
+      <span className="text-[10px] tabular-nums text-muted-foreground">
+        {formatDistanceToNow(new Date(row.capturedAt), { addSuffix: false })}
       </span>
     ),
   },
   {
     id: 'status',
     header: 'Status',
-    cell: (row) => <StatusBadge status={row.parityStatus} size="sm" />,
-    className: 'text-center',
+    width: '80px',
+    cell: (row) => <StatusBadge status={row.parityStatus} size="xs" />,
   },
 ];
 
@@ -170,12 +175,6 @@ export default function PriceMonitorPage() {
       if (filters.parityStatus && filters.parityStatus !== 'all') {
         if (record.parityStatus !== filters.parityStatus) return false;
       }
-      if (filters.stayDateFrom) {
-        if (new Date(record.stayDate) < new Date(filters.stayDateFrom)) return false;
-      }
-      if (filters.stayDateTo) {
-        if (new Date(record.stayDate) > new Date(filters.stayDateTo)) return false;
-      }
       return true;
     });
   }, [filters]);
@@ -190,59 +189,38 @@ export default function PriceMonitorPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">Price Monitor</h1>
-            <p className="text-sm text-muted-foreground">
-              Track and compare prices across all OTA channels
-            </p>
-          </div>
-        </div>
-
-        {/* Stats bar */}
-        <div className="flex items-center gap-6 rounded-lg border border-border bg-card px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Total Records:</span>
-            <span className="font-medium text-foreground">{stats.total}</span>
-          </div>
-          <div className="h-4 w-px bg-border" />
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-success" />
-            <span className="text-sm text-muted-foreground">Match:</span>
-            <span className="font-medium text-success">{stats.matched}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-warning" />
-            <span className="text-sm text-muted-foreground">Warning:</span>
-            <span className="font-medium text-warning">{stats.warnings}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-critical" />
-            <span className="text-sm text-muted-foreground">Mismatch:</span>
-            <span className="font-medium text-critical">{stats.mismatches}</span>
-          </div>
-        </div>
-
+      <div className="flex h-full flex-col">
         <FilterBar
           filters={filterConfig}
           values={filters}
           onChange={(id, value) => setFilters((prev) => ({ ...prev, [id]: value }))}
           onClear={() => setFilters({})}
-        />
+        >
+          <div className="flex items-center gap-3">
+            <InlineKPI label="Total" value={stats.total} />
+            <InlineKPI label="Match" value={stats.matched} status="success" />
+            <InlineKPI label="Warning" value={stats.warnings} status={stats.warnings > 0 ? 'warning' : 'default'} />
+            <InlineKPI label="Mismatch" value={stats.mismatches} status={stats.mismatches > 0 ? 'critical' : 'default'} />
+          </div>
+          <ToolbarSeparator />
+          <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-[11px]">
+            <RefreshCw className="h-3.5 w-3.5" />
+            Refresh
+          </Button>
+          <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-[11px]">
+            <Download className="h-3.5 w-3.5" />
+            Export
+          </Button>
+        </FilterBar>
 
-        <DataTable
-          columns={columns}
-          data={filteredRecords}
-          getRowClassName={(row) =>
-            row.parityStatus === 'mismatch'
-              ? 'bg-critical/5 hover:bg-critical/10'
-              : row.parityStatus === 'warning'
-              ? 'bg-warning/5 hover:bg-warning/10'
-              : 'hover:bg-accent/50'
-          }
-          emptyMessage="No price records found"
-        />
+        <div className="flex-1 overflow-auto p-3">
+          <DataTable
+            columns={columns}
+            data={filteredRecords}
+            compact
+            emptyMessage="No price records found"
+          />
+        </div>
       </div>
     </DashboardLayout>
   );

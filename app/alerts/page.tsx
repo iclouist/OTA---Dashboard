@@ -2,17 +2,13 @@
 
 import * as React from 'react';
 import { DashboardLayout } from '@/components/dashboard/layout';
-import { FilterBar, FilterConfig } from '@/components/dashboard/filter-bar';
-import { StatusBadge } from '@/components/dashboard/status-badge';
+import { FilterBar, FilterConfig, ToolbarSeparator } from '@/components/dashboard/filter-bar';
+import { StatusBadge, SeverityBar } from '@/components/dashboard/status-badge';
+import { InlineKPI } from '@/components/dashboard/kpi-card';
 import { alerts, properties, channels } from '@/lib/mock-data';
 import type { Alert } from '@/lib/types';
 import { formatDistanceToNow, format } from 'date-fns';
-import {
-  AlertTriangle,
-  Camera,
-  ChevronRight,
-  X,
-} from 'lucide-react';
+import { Camera, ChevronRight, Check, Eye, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,20 +42,8 @@ const filterConfig: FilterConfig[] = [
     ],
   },
   {
-    id: 'property',
-    label: 'Property',
-    type: 'select',
-    options: properties.map((p) => ({ value: p.id, label: p.name })),
-  },
-  {
-    id: 'channel',
-    label: 'Channel',
-    type: 'select',
-    options: channels.map((c) => ({ value: c.id, label: c.name })),
-  },
-  {
     id: 'issueType',
-    label: 'Issue Type',
+    label: 'Type',
     type: 'select',
     options: [
       { value: 'parity', label: 'Parity' },
@@ -95,19 +79,12 @@ export default function AlertsPage() {
       if (filters.status && filters.status !== 'all') {
         if (alert.status !== filters.status) return false;
       }
-      if (filters.property && filters.property !== 'all') {
-        if (alert.propertyId !== filters.property) return false;
-      }
-      if (filters.channel && filters.channel !== 'all') {
-        if (alert.channelId !== filters.channel) return false;
-      }
       if (filters.issueType && filters.issueType !== 'all') {
         if (alert.issueType !== filters.issueType) return false;
       }
       return true;
     });
 
-    // Sort by severity, then by lastSeen
     return filtered.sort((a, b) => {
       const severityDiff = severityOrder[a.severity] - severityOrder[b.severity];
       if (severityDiff !== 0) return severityDiff;
@@ -119,201 +96,179 @@ export default function AlertsPage() {
     const active = alerts.filter((a) => a.status === 'active').length;
     const critical = alerts.filter((a) => a.severity === 'critical' && a.status === 'active').length;
     const high = alerts.filter((a) => a.severity === 'high' && a.status === 'active').length;
-    return { active, critical, high };
+    const acknowledged = alerts.filter((a) => a.status === 'acknowledged').length;
+    return { active, critical, high, acknowledged };
   }, []);
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">Alerts</h1>
-            <p className="text-sm text-muted-foreground">
-              Monitor and manage operational alerts
-            </p>
-          </div>
-        </div>
-
-        {/* Stats bar */}
-        <div className="flex items-center gap-6 rounded-lg border border-border bg-card px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Active Alerts:</span>
-            <span className="font-medium text-foreground">{stats.active}</span>
-          </div>
-          <div className="h-4 w-px bg-border" />
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-critical" />
-            <span className="text-sm text-muted-foreground">Critical:</span>
-            <span className="font-medium text-critical">{stats.critical}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-critical/70" />
-            <span className="text-sm text-muted-foreground">High:</span>
-            <span className="font-medium text-critical">{stats.high}</span>
-          </div>
-        </div>
-
+      <div className="flex h-full flex-col">
         <FilterBar
           filters={filterConfig}
           values={filters}
           onChange={(id, value) => setFilters((prev) => ({ ...prev, [id]: value }))}
           onClear={() => setFilters({})}
-        />
+        >
+          <div className="flex items-center gap-3">
+            <InlineKPI label="Active" value={stats.active} status={stats.active > 0 ? 'critical' : 'default'} />
+            <InlineKPI label="Critical" value={stats.critical} status={stats.critical > 0 ? 'critical' : 'default'} />
+            <InlineKPI label="High" value={stats.high} status={stats.high > 0 ? 'warning' : 'default'} />
+            <InlineKPI label="Ack" value={stats.acknowledged} />
+          </div>
+          <ToolbarSeparator />
+          <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-[11px]">
+            <Check className="h-3.5 w-3.5" />
+            Acknowledge All
+          </Button>
+        </FilterBar>
 
         {/* Alerts list */}
-        <div className="rounded-lg border border-border bg-card">
-          {filteredAlerts.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              No alerts found
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {filteredAlerts.map((alert) => (
+        <div className="flex-1 overflow-auto p-3">
+          <div className="rounded-md border border-border bg-card">
+            {filteredAlerts.length === 0 ? (
+              <div className="py-8 text-center text-[12px] text-muted-foreground">
+                No alerts found
+              </div>
+            ) : (
+              filteredAlerts.map((alert) => (
                 <div
                   key={alert.id}
                   className={cn(
-                    'flex cursor-pointer items-center gap-4 px-4 py-4 transition-colors hover:bg-accent/50',
-                    alert.severity === 'critical' && 'bg-critical/5',
-                    alert.severity === 'high' && 'bg-critical/3'
+                    'group flex cursor-pointer items-stretch border-b border-border/50 transition-colors last:border-0 hover:bg-muted/30',
                   )}
                   onClick={() => setSelectedAlert(alert)}
                 >
-                  <div
-                    className={cn(
-                      'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
-                      alert.severity === 'critical' && 'bg-critical/15 text-critical',
-                      alert.severity === 'high' && 'bg-critical/15 text-critical',
-                      alert.severity === 'medium' && 'bg-warning/15 text-warning',
-                      alert.severity === 'low' && 'bg-info/15 text-info'
-                    )}
-                  >
-                    <AlertTriangle className="h-5 w-5" />
+                  <div className="flex w-1 shrink-0 py-2">
+                    <SeverityBar severity={alert.severity} />
                   </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {alert.title}
-                      </p>
-                      {alert.hasEvidence && (
-                        <Camera className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      )}
+                  
+                  <div className="flex flex-1 items-center gap-3 px-3 py-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-[12px] font-medium text-foreground">
+                          {alert.title}
+                        </span>
+                        {alert.hasEvidence && (
+                          <Camera className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <span className="truncate">{alert.propertyName}</span>
+                        {alert.channelName && (
+                          <>
+                            <span className="text-border">·</span>
+                            <span>{alert.channelName}</span>
+                          </>
+                        )}
+                        {alert.roomType && (
+                          <>
+                            <span className="text-border">·</span>
+                            <span>{alert.roomType}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {alert.propertyName}
-                      {alert.channelName && ` · ${alert.channelName}`}
-                      {alert.roomType && ` · ${alert.roomType}`}
-                    </p>
-                  </div>
 
-                  <div className="flex shrink-0 items-center gap-3">
-                    <StatusBadge status={alert.severity} size="sm" />
-                    <StatusBadge status={alert.status} size="sm" />
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(alert.lastSeen), { addSuffix: true })}
-                      </p>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <StatusBadge status={alert.severity} size="xs" />
+                      <StatusBadge status={alert.status} size="xs" />
+                      <span className="text-[10px] tabular-nums text-muted-foreground">
+                        {formatDistanceToNow(new Date(alert.lastSeen), { addSuffix: false })}
+                      </span>
+                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                     </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </div>
       </div>
 
       {/* Alert detail sheet */}
       <Sheet open={!!selectedAlert} onOpenChange={() => setSelectedAlert(null)}>
-        <SheetContent className="w-[400px] sm:w-[540px]">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <div
-                className={cn(
-                  'flex h-8 w-8 items-center justify-center rounded-md',
-                  selectedAlert?.severity === 'critical' && 'bg-critical/15 text-critical',
-                  selectedAlert?.severity === 'high' && 'bg-critical/15 text-critical',
-                  selectedAlert?.severity === 'medium' && 'bg-warning/15 text-warning',
-                  selectedAlert?.severity === 'low' && 'bg-info/15 text-info'
-                )}
-              >
-                <AlertTriangle className="h-4 w-4" />
-              </div>
+        <SheetContent className="w-[380px] border-l border-border bg-card p-0">
+          <SheetHeader className="border-b border-border px-4 py-3">
+            <SheetTitle className="flex items-center gap-2 text-[13px]">
+              <SeverityBar severity={selectedAlert?.severity || 'low'} className="h-4" />
               <span className="truncate">{selectedAlert?.title}</span>
             </SheetTitle>
           </SheetHeader>
 
           {selectedAlert && (
-            <div className="mt-6 space-y-6">
-              <div className="flex items-center gap-2">
-                <StatusBadge status={selectedAlert.severity} size="md" />
-                <StatusBadge status={selectedAlert.status} size="md" />
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2 border-b border-border px-4 py-2">
+                <StatusBadge status={selectedAlert.severity} size="sm" />
+                <StatusBadge status={selectedAlert.status} size="sm" />
                 {selectedAlert.hasEvidence && (
-                  <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-1 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                     <Camera className="h-3 w-3" />
                     Evidence
                   </span>
                 )}
               </div>
 
-              <div>
-                <p className="text-sm text-foreground">{selectedAlert.description}</p>
+              <div className="border-b border-border px-4 py-3">
+                <p className="text-[12px] leading-relaxed text-foreground">{selectedAlert.description}</p>
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-sm text-muted-foreground">Property</span>
-                  <span className="text-sm font-medium text-foreground">
+              <div className="border-b border-border">
+                <div className="flex items-center justify-between border-b border-border/50 px-4 py-2">
+                  <span className="text-[11px] text-muted-foreground">Property</span>
+                  <span className="text-[11px] font-medium text-foreground">
                     {selectedAlert.propertyName}
                   </span>
                 </div>
                 {selectedAlert.channelName && (
-                  <div className="flex items-center justify-between py-2 border-b border-border">
-                    <span className="text-sm text-muted-foreground">Channel</span>
-                    <span className="text-sm font-medium text-foreground">
+                  <div className="flex items-center justify-between border-b border-border/50 px-4 py-2">
+                    <span className="text-[11px] text-muted-foreground">Channel</span>
+                    <span className="text-[11px] font-medium text-foreground">
                       {selectedAlert.channelName}
                     </span>
                   </div>
                 )}
                 {selectedAlert.roomType && (
-                  <div className="flex items-center justify-between py-2 border-b border-border">
-                    <span className="text-sm text-muted-foreground">Room Type</span>
-                    <span className="text-sm font-medium text-foreground">
+                  <div className="flex items-center justify-between border-b border-border/50 px-4 py-2">
+                    <span className="text-[11px] text-muted-foreground">Room Type</span>
+                    <span className="text-[11px] font-medium text-foreground">
                       {selectedAlert.roomType}
                     </span>
                   </div>
                 )}
-                <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-sm text-muted-foreground">Issue Type</span>
-                  <span className="text-sm font-medium capitalize text-foreground">
+                <div className="flex items-center justify-between border-b border-border/50 px-4 py-2">
+                  <span className="text-[11px] text-muted-foreground">Issue Type</span>
+                  <span className="text-[11px] font-medium capitalize text-foreground">
                     {selectedAlert.issueType.replace('_', ' ')}
                   </span>
                 </div>
-                <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-sm text-muted-foreground">First Seen</span>
-                  <span className="text-sm text-foreground">
-                    {format(new Date(selectedAlert.firstSeen), 'MMM d, yyyy HH:mm')}
+                <div className="flex items-center justify-between border-b border-border/50 px-4 py-2">
+                  <span className="text-[11px] text-muted-foreground">First Seen</span>
+                  <span className="text-[11px] tabular-nums text-foreground">
+                    {format(new Date(selectedAlert.firstSeen), 'MMM d, HH:mm')}
                   </span>
                 </div>
-                <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-sm text-muted-foreground">Last Seen</span>
-                  <span className="text-sm text-foreground">
-                    {format(new Date(selectedAlert.lastSeen), 'MMM d, yyyy HH:mm')}
+                <div className="flex items-center justify-between px-4 py-2">
+                  <span className="text-[11px] text-muted-foreground">Last Seen</span>
+                  <span className="text-[11px] tabular-nums text-foreground">
+                    {format(new Date(selectedAlert.lastSeen), 'MMM d, HH:mm')}
                   </span>
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 p-4">
                 {selectedAlert.status === 'active' && (
-                  <Button variant="outline" size="sm" className="flex-1">
+                  <Button variant="outline" size="sm" className="h-7 flex-1 gap-1.5 text-[11px]">
+                    <Clock className="h-3.5 w-3.5" />
                     Acknowledge
                   </Button>
                 )}
-                <Button variant="outline" size="sm" className="flex-1">
-                  View Evidence
+                <Button variant="outline" size="sm" className="h-7 flex-1 gap-1.5 text-[11px]">
+                  <Eye className="h-3.5 w-3.5" />
+                  Evidence
                 </Button>
                 {selectedAlert.status !== 'resolved' && (
-                  <Button variant="default" size="sm" className="flex-1">
+                  <Button size="sm" className="h-7 flex-1 gap-1.5 text-[11px]">
+                    <Check className="h-3.5 w-3.5" />
                     Resolve
                   </Button>
                 )}

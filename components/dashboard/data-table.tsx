@@ -19,6 +19,7 @@ export interface Column<T> {
   cell?: (row: T) => React.ReactNode;
   sortable?: boolean;
   className?: string;
+  width?: string;
 }
 
 interface DataTableProps<T> {
@@ -28,6 +29,7 @@ interface DataTableProps<T> {
   getRowClassName?: (row: T) => string;
   emptyMessage?: string;
   className?: string;
+  compact?: boolean;
 }
 
 export function DataTable<T extends { id: string }>({
@@ -37,6 +39,7 @@ export function DataTable<T extends { id: string }>({
   getRowClassName,
   emptyMessage = 'No data found',
   className,
+  compact = false,
 }: DataTableProps<T>) {
   const [sortConfig, setSortConfig] = React.useState<{
     key: string | null;
@@ -70,15 +73,16 @@ export function DataTable<T extends { id: string }>({
   }, [data, sortConfig, columns]);
 
   return (
-    <div className={cn('rounded-lg border border-border bg-card', className)}>
+    <div className={cn('overflow-hidden rounded-md border border-border bg-card', className)}>
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             {columns.map((column) => (
               <TableHead
                 key={column.id}
+                style={column.width ? { width: column.width } : undefined}
                 className={cn(
-                  'h-10 text-xs font-medium text-muted-foreground',
+                  'h-8 bg-muted/30 px-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground',
                   column.sortable && 'cursor-pointer select-none hover:text-foreground',
                   column.className
                 )}
@@ -87,7 +91,7 @@ export function DataTable<T extends { id: string }>({
                 <div className="flex items-center gap-1">
                   {column.header}
                   {column.sortable && (
-                    <span className="ml-1">
+                    <span className="ml-0.5">
                       {sortConfig.key === column.id ? (
                         sortConfig.direction === 'asc' ? (
                           <ChevronUp className="h-3 w-3" />
@@ -95,7 +99,7 @@ export function DataTable<T extends { id: string }>({
                           <ChevronDown className="h-3 w-3" />
                         )
                       ) : (
-                        <ChevronsUpDown className="h-3 w-3 opacity-50" />
+                        <ChevronsUpDown className="h-3 w-3 opacity-40" />
                       )}
                     </span>
                   )}
@@ -109,7 +113,7 @@ export function DataTable<T extends { id: string }>({
             <TableRow>
               <TableCell
                 colSpan={columns.length}
-                className="h-24 text-center text-sm text-muted-foreground"
+                className="h-16 text-center text-[12px] text-muted-foreground"
               >
                 {emptyMessage}
               </TableCell>
@@ -119,7 +123,8 @@ export function DataTable<T extends { id: string }>({
               <TableRow
                 key={row.id}
                 className={cn(
-                  onRowClick && 'cursor-pointer',
+                  'border-b border-border/50 transition-colors',
+                  onRowClick && 'cursor-pointer hover:bg-muted/30',
                   getRowClassName?.(row)
                 )}
                 onClick={() => onRowClick?.(row)}
@@ -127,7 +132,11 @@ export function DataTable<T extends { id: string }>({
                 {columns.map((column) => (
                   <TableCell
                     key={column.id}
-                    className={cn('py-3 text-sm', column.className)}
+                    className={cn(
+                      'px-3 text-[12px]',
+                      compact ? 'py-1.5' : 'py-2',
+                      column.className
+                    )}
                   >
                     {column.cell
                       ? column.cell(row)

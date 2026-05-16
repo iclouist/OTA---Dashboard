@@ -3,59 +3,82 @@ import type { HealthStatus, AlertSeverity, AlertStatus, AvailabilityStatus, Pari
 
 interface StatusBadgeProps {
   status: HealthStatus | AlertSeverity | AlertStatus | AvailabilityStatus | ParityStatus | string;
-  size?: 'sm' | 'md';
+  size?: 'xs' | 'sm' | 'md';
+  variant?: 'default' | 'outline' | 'dot';
   className?: string;
 }
 
-const statusConfig: Record<string, { label: string; className: string }> = {
+const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   // Health status
-  healthy: { label: 'Healthy', className: 'bg-success/15 text-success border-success/20' },
-  warning: { label: 'Warning', className: 'bg-warning/15 text-warning border-warning/20' },
-  critical: { label: 'Critical', className: 'bg-critical/15 text-critical border-critical/20' },
-  unknown: { label: 'Unknown', className: 'bg-muted text-muted-foreground border-border' },
+  healthy: { label: 'Healthy', color: 'text-success', bg: 'bg-success/10' },
+  warning: { label: 'Warning', color: 'text-warning', bg: 'bg-warning/10' },
+  critical: { label: 'Critical', color: 'text-critical', bg: 'bg-critical/10' },
+  unknown: { label: 'Unknown', color: 'text-muted-foreground', bg: 'bg-muted' },
 
   // Alert severity
-  low: { label: 'Low', className: 'bg-info/15 text-info border-info/20' },
-  medium: { label: 'Medium', className: 'bg-warning/15 text-warning border-warning/20' },
-  high: { label: 'High', className: 'bg-critical/15 text-critical border-critical/20' },
+  low: { label: 'Low', color: 'text-info', bg: 'bg-info/10' },
+  medium: { label: 'Medium', color: 'text-warning', bg: 'bg-warning/10' },
+  high: { label: 'High', color: 'text-critical', bg: 'bg-critical/10' },
 
   // Alert status
-  active: { label: 'Active', className: 'bg-critical/15 text-critical border-critical/20' },
-  acknowledged: { label: 'Acknowledged', className: 'bg-warning/15 text-warning border-warning/20' },
-  resolved: { label: 'Resolved', className: 'bg-success/15 text-success border-success/20' },
+  active: { label: 'Active', color: 'text-critical', bg: 'bg-critical/10' },
+  acknowledged: { label: 'Ack', color: 'text-warning', bg: 'bg-warning/10' },
+  resolved: { label: 'Resolved', color: 'text-success', bg: 'bg-success/10' },
 
   // Availability status
-  available: { label: 'Available', className: 'bg-success/15 text-success border-success/20' },
-  sold_out: { label: 'Sold Out', className: 'bg-critical/15 text-critical border-critical/20' },
-  stale: { label: 'Stale', className: 'bg-warning/15 text-warning border-warning/20' },
-  mismatch: { label: 'Mismatch', className: 'bg-critical/15 text-critical border-critical/20' },
+  available: { label: 'Available', color: 'text-success', bg: 'bg-success/10' },
+  sold_out: { label: 'Sold Out', color: 'text-critical', bg: 'bg-critical/10' },
+  stale: { label: 'Stale', color: 'text-warning', bg: 'bg-warning/10' },
+  mismatch: { label: 'Mismatch', color: 'text-critical', bg: 'bg-critical/10' },
 
   // Parity status
-  match: { label: 'Match', className: 'bg-success/15 text-success border-success/20' },
+  match: { label: 'Match', color: 'text-success', bg: 'bg-success/10' },
 
   // Mapping status
-  pending: { label: 'Pending', className: 'bg-warning/15 text-warning border-warning/20' },
-  inactive: { label: 'Inactive', className: 'bg-muted text-muted-foreground border-border' },
+  pending: { label: 'Pending', color: 'text-warning', bg: 'bg-warning/10' },
+  inactive: { label: 'Inactive', color: 'text-muted-foreground', bg: 'bg-muted' },
 
   // Evidence status
-  verified: { label: 'Verified', className: 'bg-success/15 text-success border-success/20' },
-  flagged: { label: 'Flagged', className: 'bg-critical/15 text-critical border-critical/20' },
+  verified: { label: 'Verified', color: 'text-success', bg: 'bg-success/10' },
+  flagged: { label: 'Flagged', color: 'text-critical', bg: 'bg-critical/10' },
 
   // Generic
-  success: { label: 'Success', className: 'bg-success/15 text-success border-success/20' },
-  failed: { label: 'Failed', className: 'bg-critical/15 text-critical border-critical/20' },
+  success: { label: 'Success', color: 'text-success', bg: 'bg-success/10' },
+  failed: { label: 'Failed', color: 'text-critical', bg: 'bg-critical/10' },
 };
 
-export function StatusBadge({ status, size = 'sm', className }: StatusBadgeProps) {
-  const config = statusConfig[status] || { label: status, className: 'bg-muted text-muted-foreground border-border' };
+export function StatusBadge({ status, size = 'sm', variant = 'default', className }: StatusBadgeProps) {
+  const config = statusConfig[status] || { label: status, color: 'text-muted-foreground', bg: 'bg-muted' };
+
+  if (variant === 'dot') {
+    return (
+      <span className={cn('inline-flex items-center gap-1.5', className)}>
+        <span
+          className={cn(
+            'inline-block rounded-full',
+            size === 'xs' && 'h-1.5 w-1.5',
+            size === 'sm' && 'h-2 w-2',
+            size === 'md' && 'h-2.5 w-2.5',
+            config.color.replace('text-', 'bg-')
+          )}
+        />
+        <span className={cn('text-foreground', size === 'xs' && 'text-[10px]', size === 'sm' && 'text-[11px]', size === 'md' && 'text-[12px]')}>
+          {config.label}
+        </span>
+      </span>
+    );
+  }
 
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-md border font-medium',
+        'inline-flex items-center rounded font-medium',
+        variant === 'default' && config.bg,
+        variant === 'outline' && 'border border-current/20',
+        size === 'xs' && 'px-1 py-0.5 text-[9px]',
         size === 'sm' && 'px-1.5 py-0.5 text-[10px]',
-        size === 'md' && 'px-2 py-1 text-xs',
-        config.className,
+        size === 'md' && 'px-2 py-0.5 text-[11px]',
+        config.color,
         className
       )}
     >
@@ -67,6 +90,7 @@ export function StatusBadge({ status, size = 'sm', className }: StatusBadgeProps
 // Dot indicator for inline status
 interface StatusDotProps {
   status: HealthStatus | 'success' | 'failed' | 'pending';
+  size?: 'sm' | 'md';
   className?: string;
 }
 
@@ -80,12 +104,35 @@ const dotColors: Record<string, string> = {
   unknown: 'bg-muted-foreground',
 };
 
-export function StatusDot({ status, className }: StatusDotProps) {
+export function StatusDot({ status, size = 'sm', className }: StatusDotProps) {
   return (
     <span
       className={cn(
-        'inline-block h-2 w-2 rounded-full',
+        'inline-block shrink-0 rounded-full',
+        size === 'sm' && 'h-1.5 w-1.5',
+        size === 'md' && 'h-2 w-2',
         dotColors[status] || 'bg-muted-foreground',
+        className
+      )}
+    />
+  );
+}
+
+// Severity indicator bar
+interface SeverityBarProps {
+  severity: AlertSeverity;
+  className?: string;
+}
+
+export function SeverityBar({ severity, className }: SeverityBarProps) {
+  return (
+    <div
+      className={cn(
+        'h-full w-0.5 rounded-full',
+        severity === 'critical' && 'bg-critical',
+        severity === 'high' && 'bg-critical',
+        severity === 'medium' && 'bg-warning',
+        severity === 'low' && 'bg-info',
         className
       )}
     />

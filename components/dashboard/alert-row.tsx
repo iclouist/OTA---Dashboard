@@ -1,10 +1,10 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { StatusBadge } from './status-badge';
+import { StatusBadge, SeverityBar } from './status-badge';
 import type { Alert } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
-import { AlertTriangle, Camera, ChevronRight } from 'lucide-react';
+import { Camera, ChevronRight } from 'lucide-react';
 
 interface AlertRowProps {
   alert: Alert;
@@ -17,48 +17,49 @@ export function AlertRow({ alert, onClick, compact = false, className }: AlertRo
   return (
     <div
       className={cn(
-        'flex items-center gap-3 border-b border-border px-4 py-3 transition-colors last:border-0',
-        onClick && 'cursor-pointer hover:bg-accent/50',
+        'group flex items-stretch border-b border-border/50 transition-colors last:border-0',
+        onClick && 'cursor-pointer hover:bg-muted/30',
         className
       )}
       onClick={onClick}
     >
-      <div
-        className={cn(
-          'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
-          alert.severity === 'critical' && 'bg-critical/15 text-critical',
-          alert.severity === 'high' && 'bg-critical/15 text-critical',
-          alert.severity === 'medium' && 'bg-warning/15 text-warning',
-          alert.severity === 'low' && 'bg-info/15 text-info'
-        )}
-      >
-        <AlertTriangle className="h-4 w-4" />
+      {/* Severity indicator */}
+      <div className="flex w-1 shrink-0 py-2">
+        <SeverityBar severity={alert.severity} />
       </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate text-sm font-medium text-foreground">
-            {alert.title}
-          </p>
-          {alert.hasEvidence && (
-            <Camera className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      <div className={cn('flex flex-1 items-center gap-3 px-3', compact ? 'py-1.5' : 'py-2')}>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="truncate text-[12px] font-medium text-foreground">
+              {alert.title}
+            </span>
+            {alert.hasEvidence && (
+              <Camera className="h-3 w-3 shrink-0 text-muted-foreground" />
+            )}
+          </div>
+          {!compact && (
+            <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+              <span className="truncate">{alert.propertyName}</span>
+              {alert.channelName && (
+                <>
+                  <span className="text-border">·</span>
+                  <span>{alert.channelName}</span>
+                </>
+              )}
+            </div>
           )}
         </div>
-        {!compact && (
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {alert.propertyName}
-            {alert.channelName && ` · ${alert.channelName}`}
-            {alert.roomType && ` · ${alert.roomType}`}
-          </p>
-        )}
-      </div>
 
-      <div className="flex shrink-0 items-center gap-3">
-        <StatusBadge status={alert.severity} size="sm" />
-        <span className="text-xs text-muted-foreground">
-          {formatDistanceToNow(new Date(alert.lastSeen), { addSuffix: true })}
-        </span>
-        {onClick && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+        <div className="flex shrink-0 items-center gap-2">
+          <StatusBadge status={alert.severity} size="xs" />
+          <span className="text-[10px] tabular-nums text-muted-foreground">
+            {formatDistanceToNow(new Date(alert.lastSeen), { addSuffix: false })}
+          </span>
+          {onClick && (
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -83,14 +84,14 @@ export function AlertList({
 
   if (displayAlerts.length === 0) {
     return (
-      <div className={cn('py-8 text-center text-sm text-muted-foreground', className)}>
-        No alerts to display
+      <div className={cn('py-6 text-center text-[12px] text-muted-foreground', className)}>
+        No alerts
       </div>
     );
   }
 
   return (
-    <div className={cn('divide-y divide-border', className)}>
+    <div className={className}>
       {displayAlerts.map((alert) => (
         <AlertRow
           key={alert.id}

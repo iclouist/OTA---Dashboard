@@ -4,12 +4,13 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/dashboard/layout';
 import { DataTable, Column } from '@/components/dashboard/data-table';
-import { FilterBar, FilterConfig } from '@/components/dashboard/filter-bar';
-import { StatusBadge } from '@/components/dashboard/status-badge';
+import { FilterBar, FilterConfig, Toolbar, ToolbarSeparator } from '@/components/dashboard/filter-bar';
+import { StatusBadge, StatusDot } from '@/components/dashboard/status-badge';
+import { InlineKPI } from '@/components/dashboard/kpi-card';
 import { properties } from '@/lib/mock-data';
 import type { Property } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, Download, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const filterConfig: FilterConfig[] = [
@@ -43,65 +44,76 @@ const columns: Column<Property>[] = [
     header: 'Property',
     sortable: true,
     cell: (row) => (
-      <div>
-        <p className="font-medium text-foreground">{row.name}</p>
-        <p className="text-xs text-muted-foreground">
-          {row.city}, {row.country}
-        </p>
+      <div className="flex items-center gap-2">
+        <StatusDot status={row.healthStatus} />
+        <div>
+          <p className="font-medium text-foreground">{row.name}</p>
+          <p className="text-[10px] text-muted-foreground">
+            {row.city}, {row.country}
+          </p>
+        </div>
       </div>
     ),
   },
   {
     id: 'channels',
     header: 'Channels',
+    width: '80px',
     cell: (row) => (
-      <span className="text-sm text-muted-foreground">
-        {row.activeChannels.length} active
+      <span className="tabular-nums text-muted-foreground">
+        {row.activeChannels.length}
       </span>
     ),
+    className: 'text-center',
   },
   {
     id: 'roomTypes',
-    header: 'Room Types',
+    header: 'Rooms',
+    width: '70px',
     cell: (row) => (
-      <span className="text-sm text-muted-foreground">
+      <span className="tabular-nums text-muted-foreground">
         {row.roomTypes.length}
       </span>
     ),
+    className: 'text-center',
   },
   {
     id: 'ratePlans',
-    header: 'Rate Plans',
+    header: 'Plans',
+    width: '70px',
     cell: (row) => (
-      <span className="text-sm text-muted-foreground">
+      <span className="tabular-nums text-muted-foreground">
         {row.ratePlans.length}
       </span>
     ),
+    className: 'text-center',
   },
   {
     id: 'lastSync',
     header: 'Last Sync',
+    width: '100px',
     sortable: true,
     accessorKey: 'lastSync',
     cell: (row) => (
-      <span className="text-sm text-muted-foreground">
-        {formatDistanceToNow(new Date(row.lastSync), { addSuffix: true })}
+      <span className="text-[11px] tabular-nums text-muted-foreground">
+        {formatDistanceToNow(new Date(row.lastSync), { addSuffix: false })}
       </span>
     ),
   },
   {
     id: 'alertCount',
     header: 'Alerts',
+    width: '70px',
     sortable: true,
     accessorKey: 'alertCount',
     cell: (row) => (
       <span
         className={
           row.alertCount === 0
-            ? 'text-muted-foreground'
+            ? 'tabular-nums text-muted-foreground'
             : row.alertCount > 2
-            ? 'font-medium text-critical'
-            : 'font-medium text-warning'
+            ? 'tabular-nums font-medium text-critical'
+            : 'tabular-nums font-medium text-warning'
         }
       >
         {row.alertCount}
@@ -112,17 +124,18 @@ const columns: Column<Property>[] = [
   {
     id: 'status',
     header: 'Status',
-    cell: (row) => <StatusBadge status={row.healthStatus} size="sm" />,
+    width: '90px',
+    cell: (row) => <StatusBadge status={row.healthStatus} size="xs" />,
   },
   {
     id: 'actions',
     header: '',
     cell: () => (
-      <Button variant="ghost" size="icon" className="h-8 w-8">
-        <MoreHorizontal className="h-4 w-4" />
+      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100">
+        <MoreHorizontal className="h-3.5 w-3.5" />
       </Button>
     ),
-    className: 'w-12',
+    width: '40px',
   },
 ];
 
@@ -151,38 +164,45 @@ export default function PropertiesPage() {
     });
   }, [filters]);
 
+  const healthyCount = filteredProperties.filter(p => p.healthStatus === 'healthy').length;
+  const warningCount = filteredProperties.filter(p => p.healthStatus === 'warning').length;
+  const criticalCount = filteredProperties.filter(p => p.healthStatus === 'critical').length;
+
   return (
     <DashboardLayout>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">Properties</h1>
-            <p className="text-sm text-muted-foreground">
-              Manage and monitor all tracked properties
-            </p>
-          </div>
-        </div>
-
+      <div className="flex h-full flex-col">
         <FilterBar
           filters={filterConfig}
           values={filters}
           onChange={(id, value) => setFilters((prev) => ({ ...prev, [id]: value }))}
           onClear={() => setFilters({})}
-        />
+        >
+          <div className="flex items-center gap-3">
+            <InlineKPI label="Total" value={filteredProperties.length} />
+            <InlineKPI label="Healthy" value={healthyCount} status="success" />
+            <InlineKPI label="Warning" value={warningCount} status={warningCount > 0 ? 'warning' : 'default'} />
+            <InlineKPI label="Critical" value={criticalCount} status={criticalCount > 0 ? 'critical' : 'default'} />
+          </div>
+          <ToolbarSeparator />
+          <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-[11px]">
+            <Download className="h-3.5 w-3.5" />
+            Export
+          </Button>
+          <Button size="sm" className="h-7 gap-1.5 px-2 text-[11px]">
+            <Plus className="h-3.5 w-3.5" />
+            Add
+          </Button>
+        </FilterBar>
 
-        <DataTable
-          columns={columns}
-          data={filteredProperties}
-          onRowClick={(property) => router.push(`/properties/${property.id}`)}
-          getRowClassName={(row) =>
-            row.healthStatus === 'critical'
-              ? 'bg-critical/5 hover:bg-critical/10'
-              : row.healthStatus === 'warning'
-              ? 'bg-warning/5 hover:bg-warning/10'
-              : 'hover:bg-accent/50'
-          }
-          emptyMessage="No properties found"
-        />
+        <div className="flex-1 overflow-auto p-3">
+          <DataTable
+            columns={columns}
+            data={filteredProperties}
+            onRowClick={(property) => router.push(`/properties/${property.id}`)}
+            compact
+            emptyMessage="No properties found"
+          />
+        </div>
       </div>
     </DashboardLayout>
   );

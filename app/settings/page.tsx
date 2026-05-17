@@ -2,7 +2,9 @@
 
 import * as React from 'react';
 import { DashboardLayout } from '@/components/dashboard/layout';
+import { EditCommissionModal } from '@/components/dashboard/modals';
 import { settings } from '@/lib/mock-data';
+import type { CommissionModel, PayoutModel } from '@/lib/types';
 import {
   AlertTriangle,
   Clock,
@@ -12,12 +14,22 @@ import {
   Webhook,
   Database,
   FileText,
+  Edit,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/dashboard/status-badge';
 
 export default function SettingsPage() {
+  const [showEditCommission, setShowEditCommission] = React.useState(false);
+  const [selectedCommission, setSelectedCommission] = React.useState<{
+    channelName: string;
+    model: CommissionModel;
+    percent: number;
+    payoutModel: PayoutModel;
+    notes: string;
+  } | null>(null);
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -86,6 +98,7 @@ export default function SettingsPage() {
                     <th className="px-4 py-2 text-right text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Default %</th>
                     <th className="px-4 py-2 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Payout</th>
                     <th className="px-4 py-2 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Notes</th>
+                    <th className="w-10 px-4 py-2"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/50">
@@ -98,6 +111,25 @@ export default function SettingsPage() {
                         <StatusBadge status={ca.payoutModel} size="xs" />
                       </td>
                       <td className="max-w-[300px] px-4 py-2.5 text-[11px] text-muted-foreground">{ca.notes}</td>
+                      <td className="px-4 py-2.5">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0"
+                          onClick={() => {
+                            setSelectedCommission({
+                              channelName: ca.channelName,
+                              model: ca.model,
+                              percent: ca.defaultPercent,
+                              payoutModel: ca.payoutModel,
+                              notes: ca.notes,
+                            });
+                            setShowEditCommission(true);
+                          }}
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -187,6 +219,22 @@ export default function SettingsPage() {
           </span>
         </div>
       </div>
+
+      {/* Edit Commission Modal */}
+      <EditCommissionModal
+        open={showEditCommission}
+        onOpenChange={setShowEditCommission}
+        channelName={selectedCommission?.channelName}
+        initialData={selectedCommission ? {
+          model: selectedCommission.model,
+          percent: selectedCommission.percent,
+          payoutModel: selectedCommission.payoutModel,
+          notes: selectedCommission.notes,
+        } : undefined}
+        onSubmit={(data) => {
+          console.log('[v0] Update commission assumption:', data);
+        }}
+      />
     </DashboardLayout>
   );
 }

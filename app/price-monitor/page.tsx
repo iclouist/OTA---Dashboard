@@ -5,11 +5,12 @@ import { DashboardLayout } from '@/components/dashboard/layout';
 import { FilterBar, FilterConfig, ToolbarSeparator } from '@/components/dashboard/filter-bar';
 import { StatusBadge } from '@/components/dashboard/status-badge';
 import { InlineKPI } from '@/components/dashboard/kpi-card';
-import { priceCaptures, properties } from '@/lib/mock-data';
+import { AddPriceCaptureModal } from '@/components/dashboard/modals';
+import { priceCaptures, properties, mappingRecords, getMappingsByProperty } from '@/lib/mock-data';
 import type { PriceCapture } from '@/lib/types';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Download, RefreshCw, X } from 'lucide-react';
+import { Download, RefreshCw, Plus, Link2, MapPin, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -56,11 +57,23 @@ const filterConfig: FilterConfig[] = [
       { value: 'none', label: 'No Alert' },
     ],
   },
+  {
+    id: 'sourceConfidence',
+    label: 'Confidence',
+    type: 'select',
+    options: [
+      { value: 'high', label: 'High' },
+      { value: 'medium', label: 'Medium' },
+      { value: 'low', label: 'Low' },
+      { value: 'pending-verification', label: 'Pending' },
+    ],
+  },
 ];
 
 export default function PriceMonitorPage() {
   const [filters, setFilters] = React.useState<Record<string, string>>({});
   const [selectedCapture, setSelectedCapture] = React.useState<PriceCapture | null>(null);
+  const [showAddCapture, setShowAddCapture] = React.useState(false);
 
   const filteredRecords = React.useMemo(() => {
     return priceCaptures.filter((record) => {
@@ -86,6 +99,9 @@ export default function PriceMonitorPage() {
       if (filters.alertStatus && filters.alertStatus !== 'all') {
         if (record.alertStatus !== filters.alertStatus) return false;
       }
+      if (filters.sourceConfidence && filters.sourceConfidence !== 'all') {
+        if (record.sourceConfidence !== filters.sourceConfidence) return false;
+      }
       return true;
     });
   }, [filters]);
@@ -95,7 +111,8 @@ export default function PriceMonitorPage() {
     const noAlert = filteredRecords.filter((r) => r.alertStatus === 'none').length;
     const issues = total - noAlert;
     const critical = filteredRecords.filter((r) => r.alertStatus === 'critical').length;
-    return { total, noAlert, issues, critical };
+    const highConfidence = filteredRecords.filter((r) => r.sourceConfidence === 'high').length;
+    return { total, noAlert, issues, critical, highConfidence };
   }, [filteredRecords]);
 
   // Find related captures for the drawer (same property, room, stay date, different device/channel)
@@ -107,6 +124,17 @@ export default function PriceMonitorPage() {
         pc.propertyId === selectedCapture.propertyId &&
         pc.roomType === selectedCapture.roomType &&
         pc.stayDate === selectedCapture.stayDate
+    );
+  }, [selectedCapture]);
+
+  // Get mapping info for selected capture
+  const selectedMapping = React.useMemo(() => {
+    if (!selectedCapture) return null;
+    const propertyMappings = getMappingsByProperty(selectedCapture.propertyId);
+    return propertyMappings.find(
+      (m) =>
+        m.channelId === selectedCapture.channelId &&
+        m.roomType === selectedCapture.roomType
     );
   }, [selectedCapture]);
 
@@ -124,6 +152,7 @@ export default function PriceMonitorPage() {
             <InlineKPI label="Clean" value={stats.noAlert} status="success" />
             <InlineKPI label="Issues" value={stats.issues} status={stats.issues > 0 ? 'warning' : 'default'} />
             <InlineKPI label="Critical" value={stats.critical} status={stats.critical > 0 ? 'critical' : 'default'} />
+            <InlineKPI label="High Conf" value={stats.highConfidence} status="success" />
           </div>
           <ToolbarSeparator />
           <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-[11px]">
@@ -134,14 +163,18 @@ export default function PriceMonitorPage() {
             <Download className="h-3.5 w-3.5" />
             Export
           </Button>
+          <Button size="sm" className="h-7 gap-1.5 px-2 text-[11px]" onClick={() => setShowAddCapture(true)}>
+            <Plus className="h-3.5 w-3.5" />
+            Add Capture
+          </Button>
         </FilterBar>
 
         <div className="flex-1 overflow-auto">
-          <div className="min-w-[1200px]">
+          <div className="min-w-[1300px]">
             <table className="w-full">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-border bg-muted/50">
-                  {['Property', 'Channel', 'Device', 'Room', 'Rate Plan', 'Cancel Policy', 'Stay', 'Display', 'Ref', 'Delta', 'Evidence', 'Source', 'Confidence', 'Quality', 'Captured', 'Alert'].map((h) => (
+                  {['Property', 'Channel', 'Device', 'Room', 'Rate Plan', 'Cancel', 'Stay', 'Display', 'Ref', 'Delta', 'Mapping', 'Evidence', 'Source', 'Confidence', 'Quality', 'Captured', 'Alert'].map((h) => (
                     <th key={h} className="px-2 py-2 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground first:pl-3 last:pr-3">
                       {h}
                     </th>
@@ -151,54 +184,63 @@ export default function PriceMonitorPage() {
               <tbody>
                 {filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={16} className="py-12 text-center text-[12px] text-muted-foreground">
+                    <td colSpan={17} className="py-12 text-center text-[12px] text-muted-foreground">
                       No price captures found
                     </td>
                   </tr>
                 ) : (
-                  filteredRecords.map((pc) => (
-                    <tr
-                      key={pc.id}
-                      className="cursor-pointer border-b border-border/40 transition-colors hover:bg-muted/30"
-                      onClick={() => setSelectedCapture(pc)}
-                    >
-                      <td className="px-2 py-1.5 pl-3 text-[11px] font-medium text-foreground">
-                        {pc.propertyName.split(' ').slice(0, 2).join(' ')}
-                      </td>
-                      <td className="px-2 py-1.5 text-[11px] text-muted-foreground">{pc.channelName}</td>
-                      <td className="px-2 py-1.5"><StatusBadge status={pc.deviceType} size="xs" /></td>
-                      <td className="px-2 py-1.5 text-[11px] text-muted-foreground">{pc.roomType}</td>
-                      <td className="px-2 py-1.5 text-[11px] text-muted-foreground">{pc.ratePlan}</td>
-                      <td className="px-2 py-1.5"><StatusBadge status={pc.cancellationPolicy} size="xs" /></td>
-                      <td className="px-2 py-1.5 text-[11px] tabular-nums text-muted-foreground">{format(new Date(pc.stayDate), 'MMM d')}</td>
-                      <td className="px-2 py-1.5 text-[11px] font-medium tabular-nums text-foreground">
-                        {pc.currency} {pc.displayPrice.toLocaleString()}
-                      </td>
-                      <td className="px-2 py-1.5 text-[11px] tabular-nums text-muted-foreground">
-                        {pc.currency} {pc.referencePrice.toLocaleString()}
-                      </td>
-                      <td className={cn(
-                        'px-2 py-1.5 text-[11px] font-medium tabular-nums',
-                        pc.deltaPercent === 0 ? 'text-muted-foreground' : Math.abs(pc.deltaPercent) > 15 ? 'text-critical' : Math.abs(pc.deltaPercent) > 5 ? 'text-warning' : 'text-success'
-                      )}>
-                        {pc.deltaPercent > 0 ? '+' : ''}{pc.deltaPercent.toFixed(1)}%
-                      </td>
-                      <td className="px-2 py-1.5"><StatusBadge status={pc.evidenceStatus} size="xs" /></td>
-                      <td className="px-2 py-1.5"><StatusBadge status={pc.sourceType} size="xs" /></td>
-                      <td className="px-2 py-1.5"><StatusBadge status={pc.sourceConfidence} size="xs" /></td>
-                      <td className="px-2 py-1.5"><StatusBadge status={pc.compareQuality} size="xs" /></td>
-                      <td className="px-2 py-1.5 text-[10px] tabular-nums text-muted-foreground">
-                        {formatDistanceToNow(new Date(pc.lastCapturedAt), { addSuffix: false })}
-                      </td>
-                      <td className="px-2 py-1.5 pr-3">
-                        {pc.alertStatus !== 'none' ? (
-                          <StatusBadge status={pc.alertStatus} size="xs" />
-                        ) : (
-                          <span className="text-[10px] text-muted-foreground">-</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                  filteredRecords.map((pc) => {
+                    // Check mapping status for this capture
+                    const mapping = mappingRecords.find(
+                      (m) => m.propertyId === pc.propertyId && m.channelId === pc.channelId && m.roomType === pc.roomType
+                    );
+                    const mappingStatus = mapping?.status || 'unmapped';
+
+                    return (
+                      <tr
+                        key={pc.id}
+                        className="cursor-pointer border-b border-border/40 transition-colors hover:bg-muted/30"
+                        onClick={() => setSelectedCapture(pc)}
+                      >
+                        <td className="px-2 py-1.5 pl-3 text-[11px] font-medium text-foreground">
+                          {pc.propertyName.split(' ').slice(0, 2).join(' ')}
+                        </td>
+                        <td className="px-2 py-1.5 text-[11px] text-muted-foreground">{pc.channelName}</td>
+                        <td className="px-2 py-1.5"><StatusBadge status={pc.deviceType} size="xs" /></td>
+                        <td className="px-2 py-1.5 text-[11px] text-muted-foreground">{pc.roomType}</td>
+                        <td className="px-2 py-1.5 text-[11px] text-muted-foreground">{pc.ratePlan}</td>
+                        <td className="px-2 py-1.5"><StatusBadge status={pc.cancellationPolicy} size="xs" /></td>
+                        <td className="px-2 py-1.5 text-[11px] tabular-nums text-muted-foreground">{format(new Date(pc.stayDate), 'MMM d')}</td>
+                        <td className="px-2 py-1.5 text-[11px] font-medium tabular-nums text-foreground">
+                          {pc.currency} {pc.displayPrice.toLocaleString()}
+                        </td>
+                        <td className="px-2 py-1.5 text-[11px] tabular-nums text-muted-foreground">
+                          {pc.currency} {pc.referencePrice.toLocaleString()}
+                        </td>
+                        <td className={cn(
+                          'px-2 py-1.5 text-[11px] font-medium tabular-nums',
+                          pc.deltaPercent === 0 ? 'text-muted-foreground' : Math.abs(pc.deltaPercent) > 15 ? 'text-critical' : Math.abs(pc.deltaPercent) > 5 ? 'text-warning' : 'text-success'
+                        )}>
+                          {pc.deltaPercent > 0 ? '+' : ''}{pc.deltaPercent.toFixed(1)}%
+                        </td>
+                        <td className="px-2 py-1.5"><StatusBadge status={mappingStatus} size="xs" /></td>
+                        <td className="px-2 py-1.5"><StatusBadge status={pc.evidenceStatus} size="xs" /></td>
+                        <td className="px-2 py-1.5"><StatusBadge status={pc.sourceType} size="xs" /></td>
+                        <td className="px-2 py-1.5"><StatusBadge status={pc.sourceConfidence} size="xs" /></td>
+                        <td className="px-2 py-1.5"><StatusBadge status={pc.compareQuality} size="xs" /></td>
+                        <td className="px-2 py-1.5 text-[10px] tabular-nums text-muted-foreground">
+                          {formatDistanceToNow(new Date(pc.lastCapturedAt), { addSuffix: false })}
+                        </td>
+                        <td className="px-2 py-1.5 pr-3">
+                          {pc.alertStatus !== 'none' ? (
+                            <StatusBadge status={pc.alertStatus} size="xs" />
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -208,7 +250,7 @@ export default function PriceMonitorPage() {
 
       {/* Detail Drawer */}
       <Sheet open={!!selectedCapture} onOpenChange={() => setSelectedCapture(null)}>
-        <SheetContent className="w-[420px] border-l border-border bg-card p-0 overflow-y-auto">
+        <SheetContent className="w-[460px] border-l border-border bg-card p-0 overflow-y-auto">
           <SheetHeader className="border-b border-border px-4 py-3">
             <SheetTitle className="text-[13px]">Price Capture Detail</SheetTitle>
           </SheetHeader>
@@ -271,27 +313,72 @@ export default function PriceMonitorPage() {
                 ))}
               </div>
 
+              {/* Mapping Info */}
+              <div className="border-b border-border px-4 py-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  <h4 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Mapping</h4>
+                </div>
+                {selectedMapping ? (
+                  <div className="rounded bg-muted/20 p-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground">OTA Room Name</span>
+                      <span className="text-[11px] font-medium text-foreground">{selectedMapping.otaRoomName || '-'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground">OTA Rate Plan</span>
+                      <span className="text-[11px] text-foreground">{selectedMapping.otaRatePlanName || '-'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground">Mapping Status</span>
+                      <StatusBadge status={selectedMapping.status} size="xs" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground">Last Verified</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {formatDistanceToNow(new Date(selectedMapping.lastVerified), { addSuffix: true })}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded bg-warning/10 border border-warning/20 p-2.5">
+                    <p className="text-[11px] text-warning">
+                      No mapping found for this room/channel combination. Price comparison may be uncertain.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Commission & promotion notes */}
               <div className="border-b border-border px-4 py-3">
-                <h4 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Notes</h4>
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                  <h4 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Notes</h4>
+                </div>
                 {selectedCapture.commissionAssumption && (
                   <p className="text-[11px] text-muted-foreground">
-                    Commission assumption: <span className="text-foreground">{selectedCapture.commissionAssumption}%</span>
+                    Commission assumption: <span className="text-foreground font-medium">{selectedCapture.commissionAssumption}%</span>
                   </p>
                 )}
                 {selectedCapture.promotionStackingNote && (
-                  <p className="mt-1 text-[11px] text-warning">
+                  <p className="mt-1.5 text-[11px] text-warning">
                     {selectedCapture.promotionStackingNote}
                   </p>
+                )}
+                {!selectedCapture.commissionAssumption && !selectedCapture.promotionStackingNote && (
+                  <p className="text-[11px] text-muted-foreground">No notes</p>
                 )}
               </div>
 
               {/* Related captures (same room/date, different device/channel) */}
               {relatedCaptures.length > 0 && (
                 <div className="px-4 py-3">
-                  <h4 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                    Same Room / Date Comparison
-                  </h4>
+                  <div className="flex items-center gap-2 mb-2">
+                    <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                    <h4 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Same Room / Date Comparison
+                    </h4>
+                  </div>
                   <div className="space-y-2">
                     {relatedCaptures.map((rc) => (
                       <div
@@ -325,6 +412,16 @@ export default function PriceMonitorPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Add Manual Price Capture Modal */}
+      <AddPriceCaptureModal
+        open={showAddCapture}
+        onOpenChange={setShowAddCapture}
+        onSubmit={(data) => {
+          console.log('[v0] Add price capture:', data);
+          // In a real app, this would call an API
+        }}
+      />
     </DashboardLayout>
   );
 }

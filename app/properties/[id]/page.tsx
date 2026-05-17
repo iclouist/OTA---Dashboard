@@ -8,6 +8,12 @@ import { StatusBadge, StatusDot } from '@/components/dashboard/status-badge';
 import { KPICard } from '@/components/dashboard/kpi-card';
 import { AlertList } from '@/components/dashboard/alert-row';
 import {
+  AddOTAChannelModal,
+  AddMappingModal,
+  AddPriceCaptureModal,
+  EditCommissionModal,
+} from '@/components/dashboard/modals';
+import {
   getPropertyById,
   getAlertsByProperty,
   getEvidenceByProperty,
@@ -26,6 +32,8 @@ import {
   TrendingUp,
   AlertTriangle,
   ShieldCheck,
+  Plus,
+  Edit,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -39,6 +47,18 @@ interface PropertyDetailPageProps {
 export default function PropertyDetailPage({ params }: PropertyDetailPageProps) {
   const { id } = use(params);
   const property = getPropertyById(id);
+
+  const [showAddChannel, setShowAddChannel] = React.useState(false);
+  const [showAddMapping, setShowAddMapping] = React.useState(false);
+  const [showAddCapture, setShowAddCapture] = React.useState(false);
+  const [showEditCommission, setShowEditCommission] = React.useState(false);
+  const [selectedChannel, setSelectedChannel] = React.useState<{
+    name: string;
+    model: 'percentage' | 'fixed-per-night' | 'tiered' | 'unknown';
+    percent: number;
+    payoutModel: 'collect-and-remit' | 'pay-at-property' | 'virtual-card' | 'bank-transfer' | 'unknown';
+    notes: string;
+  } | null>(null);
 
   if (!property) {
     notFound();
@@ -66,7 +86,7 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
               <div className="flex items-center gap-2">
                 <h1 className="text-lg font-semibold text-foreground">{property.name}</h1>
                 <StatusBadge status={property.healthStatus} size="sm" />
-                <StatusBadge status={property.onboardingStatus} size="xs" variant="outline" />
+                <StatusBadge status={property.onboardingStatus} size="sm" variant="outline" />
               </div>
               <div className="mt-0.5 flex items-center gap-2 text-[12px] text-muted-foreground">
                 <MapPin className="h-3 w-3" />
@@ -167,6 +187,12 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
 
           {/* Prices Tab */}
           <TabsContent value="prices" className="space-y-3">
+            <div className="flex items-center justify-end gap-2">
+              <Button size="sm" className="h-7 gap-1.5 px-2 text-[11px]" onClick={() => setShowAddCapture(true)}>
+                <Plus className="h-3.5 w-3.5" />
+                Add Capture
+              </Button>
+            </div>
             {priceCaptures.length === 0 ? (
               <div className="rounded-md border border-border bg-card py-8 text-center text-[12px] text-muted-foreground">
                 No price captures yet
@@ -358,8 +384,12 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
 
               {/* Channel Configuration */}
               <div className="rounded-md border border-border bg-card">
-                <div className="border-b border-border px-3 py-2">
+                <div className="flex items-center justify-between border-b border-border px-3 py-2">
                   <span className="text-[12px] font-medium text-foreground">Channel Configuration</span>
+                  <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[10px]" onClick={() => setShowAddChannel(true)}>
+                    <Plus className="h-3 w-3" />
+                    Add Channel
+                  </Button>
                 </div>
                 <div>
                   {channelAccounts.length === 0 ? (
@@ -369,7 +399,26 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
                       <div key={ca.id} className="border-b border-border/50 p-3 last:border-0">
                         <div className="flex items-center justify-between">
                           <span className="text-[11px] font-medium text-foreground">{ca.channelName}</span>
-                          <StatusBadge status={ca.setupComplete ? 'complete' : 'partial'} size="xs" />
+                          <div className="flex items-center gap-1">
+                            <StatusBadge status={ca.setupComplete ? 'complete' : 'partial'} size="xs" />
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-5 w-5 p-0"
+                              onClick={() => {
+                                setSelectedChannel({
+                                  name: ca.channelName,
+                                  model: ca.commissionModel,
+                                  percent: ca.commissionPercent,
+                                  payoutModel: ca.payoutModel,
+                                  notes: ca.promotionStackingRule,
+                                });
+                                setShowEditCommission(true);
+                              }}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1">
                           <div className="flex justify-between text-[10px]">
@@ -404,11 +453,17 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
             </div>
 
             {/* Mappings */}
-            {mappings.length > 0 && (
-              <div className="rounded-md border border-border bg-card">
-                <div className="border-b border-border px-3 py-2">
-                  <span className="text-[12px] font-medium text-foreground">Room/Rate Mappings</span>
-                </div>
+            <div className="rounded-md border border-border bg-card">
+              <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                <span className="text-[12px] font-medium text-foreground">Room/Rate Mappings</span>
+                <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[10px]" onClick={() => setShowAddMapping(true)}>
+                  <Plus className="h-3 w-3" />
+                  Add Mapping
+                </Button>
+              </div>
+              {mappings.length === 0 ? (
+                <div className="p-4 text-center text-[11px] text-muted-foreground">No mappings configured</div>
+              ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
@@ -417,6 +472,7 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
                         <th className="px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Room</th>
                         <th className="px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground">OTA Room</th>
                         <th className="px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Rate Plan</th>
+                        <th className="px-3 py-2 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Cancel</th>
                         <th className="px-3 py-2 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Status</th>
                       </tr>
                     </thead>
@@ -431,6 +487,9 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
                             <p className="text-[10px] text-muted-foreground">{m.otaRatePlanName || ''}</p>
                           </td>
                           <td className="px-3 py-2 text-center">
+                            <StatusBadge status={m.cancellationPolicy} size="xs" />
+                          </td>
+                          <td className="px-3 py-2 text-center">
                             <StatusBadge status={m.status} size="xs" />
                           </td>
                         </tr>
@@ -438,11 +497,54 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Modals */}
+      <AddOTAChannelModal
+        open={showAddChannel}
+        onOpenChange={setShowAddChannel}
+        propertyName={property.name}
+        onSubmit={(data) => {
+          console.log('[v0] Add OTA channel:', data);
+        }}
+      />
+
+      <AddMappingModal
+        open={showAddMapping}
+        onOpenChange={setShowAddMapping}
+        propertyName={property.name}
+        onSubmit={(data) => {
+          console.log('[v0] Add mapping:', data);
+        }}
+      />
+
+      <AddPriceCaptureModal
+        open={showAddCapture}
+        onOpenChange={setShowAddCapture}
+        propertyName={property.name}
+        onSubmit={(data) => {
+          console.log('[v0] Add price capture:', data);
+        }}
+      />
+
+      <EditCommissionModal
+        open={showEditCommission}
+        onOpenChange={setShowEditCommission}
+        channelName={selectedChannel?.name}
+        initialData={selectedChannel ? {
+          model: selectedChannel.model,
+          percent: selectedChannel.percent,
+          payoutModel: selectedChannel.payoutModel,
+          notes: selectedChannel.notes,
+        } : undefined}
+        onSubmit={(data) => {
+          console.log('[v0] Update commission:', data);
+        }}
+      />
     </DashboardLayout>
   );
 }

@@ -7,6 +7,7 @@ import { DataTable, Column } from '@/components/dashboard/data-table';
 import { FilterBar, FilterConfig, ToolbarSeparator } from '@/components/dashboard/filter-bar';
 import { StatusBadge, StatusDot } from '@/components/dashboard/status-badge';
 import { InlineKPI } from '@/components/dashboard/kpi-card';
+import { AddPropertyModal } from '@/components/dashboard/modals';
 import { properties } from '@/lib/mock-data';
 import type { Property } from '@/lib/types';
 import { Download, Plus } from 'lucide-react';
@@ -27,12 +28,15 @@ const filterConfig: FilterConfig[] = [
   },
   {
     id: 'onboarding',
-    label: 'Status',
+    label: 'Onboarding',
     type: 'select',
     options: [
-      { value: 'active', label: 'Active' },
       { value: 'draft', label: 'Draft' },
+      { value: 'mapping-needed', label: 'Mapping Needed' },
+      { value: 'email-live', label: 'Email Live' },
+      { value: 'price-monitor-live', label: 'Price Monitor Live' },
       { value: 'verification-pending', label: 'Verification Pending' },
+      { value: 'active', label: 'Active' },
     ],
   },
 ];
@@ -53,9 +57,15 @@ const columns: Column<Property>[] = [
     ),
   },
   {
+    id: 'onboardingStatus',
+    header: 'Status',
+    width: '120px',
+    cell: (row) => <StatusBadge status={row.onboardingStatus} size="sm" />,
+  },
+  {
     id: 'channels',
-    header: 'OTA Channels',
-    width: '100px',
+    header: 'Channels',
+    width: '80px',
     cell: (row) => (
       <span className="tabular-nums text-muted-foreground">{row.activeOTAChannels.length}</span>
     ),
@@ -112,7 +122,7 @@ const columns: Column<Property>[] = [
   {
     id: 'priceIssues',
     header: 'Issues',
-    width: '65px',
+    width: '60px',
     sortable: true,
     accessorKey: 'activePriceIssues',
     cell: (row) => (
@@ -153,6 +163,7 @@ const columns: Column<Property>[] = [
 export default function PropertiesPage() {
   const router = useRouter();
   const [filters, setFilters] = React.useState<Record<string, string>>({});
+  const [showAddProperty, setShowAddProperty] = React.useState(false);
 
   const filteredProperties = React.useMemo(() => {
     return properties.filter((property) => {
@@ -176,6 +187,8 @@ export default function PropertiesPage() {
   }, [filters]);
 
   const healthyCount = filteredProperties.filter((p) => p.healthStatus === 'healthy').length;
+  const activeCount = filteredProperties.filter((p) => p.onboardingStatus === 'active').length;
+  const draftCount = filteredProperties.filter((p) => p.onboardingStatus === 'draft' || p.onboardingStatus === 'mapping-needed').length;
   const totalNights = filteredProperties.reduce((s, p) => s + p.roomNightsSold, 0);
 
   return (
@@ -189,6 +202,8 @@ export default function PropertiesPage() {
         >
           <div className="flex items-center gap-3">
             <InlineKPI label="Total" value={filteredProperties.length} />
+            <InlineKPI label="Active" value={activeCount} status="success" />
+            <InlineKPI label="Setup" value={draftCount} status={draftCount > 0 ? 'warning' : 'default'} />
             <InlineKPI label="Healthy" value={healthyCount} status="success" />
             <InlineKPI label="Nights" value={totalNights} />
           </div>
@@ -197,7 +212,7 @@ export default function PropertiesPage() {
             <Download className="h-3.5 w-3.5" />
             Export
           </Button>
-          <Button size="sm" className="h-7 gap-1.5 px-2 text-[11px]">
+          <Button size="sm" className="h-7 gap-1.5 px-2 text-[11px]" onClick={() => setShowAddProperty(true)}>
             <Plus className="h-3.5 w-3.5" />
             Add Property
           </Button>
@@ -213,6 +228,15 @@ export default function PropertiesPage() {
           />
         </div>
       </div>
+
+      <AddPropertyModal
+        open={showAddProperty}
+        onOpenChange={setShowAddProperty}
+        onSubmit={(data) => {
+          console.log('[v0] Add property:', data);
+          // In a real app, this would call an API
+        }}
+      />
     </DashboardLayout>
   );
 }

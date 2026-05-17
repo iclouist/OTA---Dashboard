@@ -34,6 +34,19 @@ import {
   ShieldCheck,
   Plus,
   Edit,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Link2,
+  Mail,
+  ImageIcon,
+  MousePointer,
+  Layers,
+  Settings2,
+  Activity,
+  AlertCircle,
+  Radio,
+  CreditCard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -71,6 +84,26 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
   const mappings = getMappingsByProperty(id);
   const channelAccounts = getChannelAccountsByProperty(id);
 
+  // Compute per-channel stats
+  const getChannelStats = (channelId: string) => {
+    const channelCaptures = priceCaptures.filter((pc) => pc.channelId === channelId);
+    const channelMappings = mappings.filter((m) => m.channelId === channelId);
+    const channelBookings = bookings.filter((b) => b.channelId === channelId);
+    const channelAlerts = propertyAlerts.filter((a) => a.channelId === channelId);
+    
+    return {
+      activeMismatches: channelCaptures.filter((pc) => pc.alertStatus === 'critical' || pc.alertStatus === 'medium').length,
+      staleEvidence: channelCaptures.filter((pc) => pc.evidenceStatus === 'stale').length,
+      missingEvidence: channelCaptures.filter((pc) => pc.evidenceStatus === 'missing').length,
+      pendingVerifications: channelBookings.filter((b) => b.verificationStatus === 'needs-admin-review' || b.verificationStatus === 'link-only').length,
+      mappingGaps: channelMappings.filter((m) => m.status === 'partial' || m.status === 'unmapped').length,
+      uncertainCompares: channelCaptures.filter((pc) => pc.compareQuality === 'uncertain').length,
+      totalCaptures: channelCaptures.length,
+      totalBookings: channelBookings.length,
+      criticalAlerts: channelAlerts.filter((a) => a.severity === 'critical').length,
+    };
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-4">
@@ -104,6 +137,7 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
         <Tabs defaultValue="summary" className="space-y-3">
           <TabsList className="h-8 bg-muted/50">
             <TabsTrigger value="summary" className="text-[12px]">Summary</TabsTrigger>
+            <TabsTrigger value="channels" className="text-[12px]">Channels</TabsTrigger>
             <TabsTrigger value="prices" className="text-[12px]">Prices</TabsTrigger>
             <TabsTrigger value="bookings" className="text-[12px]">Bookings</TabsTrigger>
             <TabsTrigger value="evidence" className="text-[12px]">Evidence</TabsTrigger>
@@ -145,7 +179,7 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
                 </div>
               </div>
 
-              {/* Channel readiness */}
+              {/* Channel readiness overview */}
               <div className="rounded-md border border-border bg-card">
                 <div className="border-b border-border px-3 py-2">
                   <span className="text-[12px] font-medium text-foreground">Channel Readiness</span>
@@ -156,21 +190,30 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
                       No channels configured
                     </div>
                   ) : (
-                    channelAccounts.map((ca) => (
-                      <div key={ca.id} className="flex items-center gap-2 border-b border-border/50 px-3 py-2 last:border-0">
-                        <StatusDot status={ca.setupComplete ? 'healthy' : 'warning'} />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[11px] font-medium text-foreground">{ca.channelName}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {ca.commissionModel === 'percentage' ? `${ca.commissionPercent}% commission` : ca.commissionModel}
-                          </p>
+                    channelAccounts.map((ca) => {
+                      const stats = getChannelStats(ca.channelId);
+                      const hasIssues = stats.activeMismatches > 0 || stats.staleEvidence > 0 || stats.pendingVerifications > 0;
+                      return (
+                        <div key={ca.id} className="flex items-center gap-2 border-b border-border/50 px-3 py-2 last:border-0">
+                          <StatusDot status={ca.setupComplete && ca.mappingComplete ? 'healthy' : hasIssues ? 'warning' : 'unknown'} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-medium text-foreground">{ca.channelName}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {ca.commissionModel === 'percentage' ? `${ca.commissionPercent}% commission` : ca.commissionModel}
+                            </p>
+                          </div>
+                          <div className="flex gap-1">
+                            {stats.activeMismatches > 0 && (
+                              <span className="rounded bg-critical/15 px-1.5 py-0.5 text-[9px] font-semibold text-critical">
+                                {stats.activeMismatches} issues
+                              </span>
+                            )}
+                            <StatusBadge status={ca.setupComplete ? 'complete' : 'partial'} size="xs" />
+                            <StatusBadge status={ca.mappingComplete ? 'complete' : 'unmapped'} size="xs" />
+                          </div>
                         </div>
-                        <div className="flex gap-1">
-                          <StatusBadge status={ca.setupComplete ? 'complete' : 'partial'} size="xs" />
-                          <StatusBadge status={ca.mappingComplete ? 'complete' : 'unmapped'} size="xs" />
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -182,6 +225,274 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
                 <span className="text-[12px] font-medium text-foreground">Alerts ({propertyAlerts.length})</span>
               </div>
               <AlertList alerts={propertyAlerts} maxItems={5} compact />
+            </div>
+          </TabsContent>
+
+          {/* Channels Tab - Enhanced Channel Profiles */}
+          <TabsContent value="channels" className="space-y-4">
+            {/* Property × OTA Matrix */}
+            <div className="rounded-md border border-border bg-card">
+              <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-[12px] font-medium text-foreground">Property × OTA Matrix</span>
+                </div>
+                <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[10px]" onClick={() => setShowAddChannel(true)}>
+                  <Plus className="h-3 w-3" />
+                  Add Channel
+                </Button>
+              </div>
+              {channelAccounts.length === 0 ? (
+                <div className="p-6 text-center text-[11px] text-muted-foreground">
+                  No OTA channels configured. Add a channel to start monitoring.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className="px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground">OTA</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Setup</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Mapping</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Verify</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Capture</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Evidence</th>
+                        <th className="px-2 py-2 text-right text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Comm</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Payout</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Risk</th>
+                        <th className="px-2 py-2 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Last Sync</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/50">
+                      {channelAccounts.map((ca) => {
+                        const stats = getChannelStats(ca.channelId);
+                        const riskScore = stats.activeMismatches + stats.staleEvidence + stats.mappingGaps;
+                        return (
+                          <tr key={ca.id} className="hover:bg-muted/30">
+                            <td className="px-3 py-2.5">
+                              <p className="text-[11px] font-medium text-foreground">{ca.channelName}</p>
+                              <p className="text-[9px] font-mono text-muted-foreground">{ca.otaPropertyId || '—'}</p>
+                            </td>
+                            <td className="px-2 py-2.5 text-center">
+                              {ca.setupComplete ? (
+                                <CheckCircle2 className="mx-auto h-4 w-4 text-success" />
+                              ) : (
+                                <XCircle className="mx-auto h-4 w-4 text-muted-foreground" />
+                              )}
+                            </td>
+                            <td className="px-2 py-2.5 text-center">
+                              {ca.mappingComplete ? (
+                                <CheckCircle2 className="mx-auto h-4 w-4 text-success" />
+                              ) : (
+                                <AlertCircle className="mx-auto h-4 w-4 text-warning" />
+                              )}
+                            </td>
+                            <td className="px-2 py-2.5 text-center">
+                              {ca.verificationReady ? (
+                                <CheckCircle2 className="mx-auto h-4 w-4 text-success" />
+                              ) : (
+                                <Clock className="mx-auto h-4 w-4 text-muted-foreground" />
+                              )}
+                            </td>
+                            <td className="px-2 py-2.5 text-center">
+                              <span className="text-[11px] font-medium tabular-nums text-foreground">{stats.totalCaptures}</span>
+                            </td>
+                            <td className="px-2 py-2.5 text-center">
+                              {stats.staleEvidence > 0 ? (
+                                <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[9px] font-semibold text-warning">
+                                  {stats.staleEvidence} stale
+                                </span>
+                              ) : stats.missingEvidence > 0 ? (
+                                <span className="rounded bg-critical/15 px-1.5 py-0.5 text-[9px] font-semibold text-critical">
+                                  {stats.missingEvidence} missing
+                                </span>
+                              ) : (
+                                <CheckCircle2 className="mx-auto h-4 w-4 text-success" />
+                              )}
+                            </td>
+                            <td className="px-2 py-2.5 text-right text-[11px] font-medium tabular-nums text-foreground">
+                              {ca.commissionModel === 'percentage' ? `${ca.commissionPercent}%` : ca.commissionModel}
+                            </td>
+                            <td className="px-2 py-2.5">
+                              <StatusBadge status={ca.payoutModel} size="xs" />
+                            </td>
+                            <td className="px-2 py-2.5 text-center">
+                              {riskScore === 0 ? (
+                                <span className="rounded bg-success/15 px-2 py-0.5 text-[10px] font-semibold text-success">OK</span>
+                              ) : riskScore <= 2 ? (
+                                <span className="rounded bg-warning/15 px-2 py-0.5 text-[10px] font-semibold text-warning">{riskScore}</span>
+                              ) : (
+                                <span className="rounded bg-critical/15 px-2 py-0.5 text-[10px] font-semibold text-critical">{riskScore}</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-2.5 text-[10px] tabular-nums text-muted-foreground">
+                              {ca.lastDataAt ? formatDistanceToNow(new Date(ca.lastDataAt), { addSuffix: false }) : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Channel Profiles - Detailed Cards */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+              {channelAccounts.map((ca) => {
+                const stats = getChannelStats(ca.channelId);
+                const hasIssues = stats.activeMismatches > 0 || stats.staleEvidence > 0 || stats.pendingVerifications > 0;
+                return (
+                  <div key={ca.id} className={cn(
+                    "rounded-lg border bg-card",
+                    hasIssues ? "border-warning/50" : "border-border"
+                  )}>
+                    {/* Channel Header */}
+                    <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className={cn(
+                          "flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-bold",
+                          ca.channelName === 'Booking.com' ? "bg-blue-500/15 text-blue-600" :
+                          ca.channelName === 'Agoda' ? "bg-red-500/15 text-red-600" :
+                          ca.channelName === 'Airbnb' ? "bg-pink-500/15 text-pink-600" :
+                          "bg-muted text-muted-foreground"
+                        )}>
+                          {ca.channelName.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-[12px] font-semibold text-foreground">{ca.channelName}</p>
+                          <p className="text-[9px] font-mono text-muted-foreground">{ca.otaPropertyId || 'No ID'}</p>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0"
+                        onClick={() => {
+                          setSelectedChannel({
+                            name: ca.channelName,
+                            model: ca.commissionModel,
+                            percent: ca.commissionPercent,
+                            payoutModel: ca.payoutModel,
+                            notes: ca.promotionStackingRule,
+                          });
+                          setShowEditCommission(true);
+                        }}
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+
+                    {/* Identity */}
+                    <div className="border-b border-border/30 px-4 py-3">
+                      <p className="mb-2 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Identity</p>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-muted-foreground">OTA Property Name</span>
+                          <span className="max-w-[140px] truncate font-medium text-foreground">{ca.otaPropertyName || '—'}</span>
+                        </div>
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-muted-foreground">Last Data</span>
+                          <span className="text-foreground">
+                            {ca.lastDataAt ? formatDistanceToNow(new Date(ca.lastDataAt), { addSuffix: true }) : '—'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Commercial */}
+                    <div className="border-b border-border/30 px-4 py-3">
+                      <p className="mb-2 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Commercial</p>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-muted-foreground">Commission</span>
+                          <span className="font-semibold text-foreground">
+                            {ca.commissionModel === 'percentage' ? `${ca.commissionPercent}%` : ca.commissionModel}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-muted-foreground">Payout</span>
+                          <StatusBadge status={ca.payoutModel} size="xs" />
+                        </div>
+                        {ca.promotionStackingRule && ca.promotionStackingRule !== 'Not configured' && (
+                          <div className="mt-1 rounded bg-info/10 p-1.5">
+                            <p className="text-[9px] text-info">{ca.promotionStackingRule}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Operational Readiness */}
+                    <div className="border-b border-border/30 px-4 py-3">
+                      <p className="mb-2 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Operational Readiness</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="flex flex-col items-center rounded bg-muted/30 p-1.5">
+                          {ca.setupComplete ? (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                          ) : (
+                            <XCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                          )}
+                          <span className="mt-0.5 text-[8px] text-muted-foreground">Setup</span>
+                        </div>
+                        <div className="flex flex-col items-center rounded bg-muted/30 p-1.5">
+                          {ca.mappingComplete ? (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                          ) : (
+                            <AlertCircle className="h-3.5 w-3.5 text-warning" />
+                          )}
+                          <span className="mt-0.5 text-[8px] text-muted-foreground">Mapping</span>
+                        </div>
+                        <div className="flex flex-col items-center rounded bg-muted/30 p-1.5">
+                          {ca.verificationReady ? (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                          ) : (
+                            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                          )}
+                          <span className="mt-0.5 text-[8px] text-muted-foreground">Verify</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Risk / Issues */}
+                    <div className="px-4 py-3">
+                      <p className="mb-2 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Issues</p>
+                      {stats.activeMismatches === 0 && stats.staleEvidence === 0 && stats.pendingVerifications === 0 && stats.uncertainCompares === 0 ? (
+                        <div className="flex items-center gap-2 rounded bg-success/10 p-2">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                          <span className="text-[10px] font-medium text-success">No active issues</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          {stats.activeMismatches > 0 && (
+                            <div className="flex items-center gap-2 rounded bg-critical/10 px-2 py-1">
+                              <AlertTriangle className="h-3 w-3 text-critical" />
+                              <span className="text-[10px] text-critical">{stats.activeMismatches} price mismatch{stats.activeMismatches > 1 ? 'es' : ''}</span>
+                            </div>
+                          )}
+                          {stats.staleEvidence > 0 && (
+                            <div className="flex items-center gap-2 rounded bg-warning/10 px-2 py-1">
+                              <Clock className="h-3 w-3 text-warning" />
+                              <span className="text-[10px] text-warning">{stats.staleEvidence} stale capture{stats.staleEvidence > 1 ? 's' : ''}</span>
+                            </div>
+                          )}
+                          {stats.pendingVerifications > 0 && (
+                            <div className="flex items-center gap-2 rounded bg-info/10 px-2 py-1">
+                              <Clock className="h-3 w-3 text-info" />
+                              <span className="text-[10px] text-info">{stats.pendingVerifications} pending verification{stats.pendingVerifications > 1 ? 's' : ''}</span>
+                            </div>
+                          )}
+                          {stats.uncertainCompares > 0 && (
+                            <div className="flex items-center gap-2 rounded bg-muted px-2 py-1">
+                              <AlertCircle className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-[10px] text-muted-foreground">{stats.uncertainCompares} uncertain compare{stats.uncertainCompares > 1 ? 's' : ''}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </TabsContent>
 
@@ -359,52 +670,88 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
             )}
           </TabsContent>
 
-          {/* Setup Tab */}
+          {/* Setup Tab - Enhanced Onboarding Center */}
           <TabsContent value="setup" className="space-y-4">
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-              {/* Property Setup Status */}
-              <div className="rounded-md border border-border bg-card">
-                <div className="border-b border-border px-3 py-2">
-                  <span className="text-[12px] font-medium text-foreground">Property Setup Status</span>
-                </div>
-                <div className="p-3 space-y-2">
+            {/* Onboarding Readiness Overview */}
+            <div className="rounded-lg border border-border bg-card">
+              <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+                <Settings2 className="h-4 w-4 text-muted-foreground" />
+                <span className="text-[13px] font-medium text-foreground">Onboarding Readiness</span>
+              </div>
+              <div className="p-4">
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
                   {[
-                    { label: 'Onboarding Status', value: property.onboardingStatus },
-                    { label: 'Mapping Completeness', value: property.mappingCompleteness },
-                    { label: 'Data Freshness', value: property.dataFreshness },
-                    { label: 'Health Status', value: property.healthStatus },
+                    { label: 'Property Setup', done: property.onboardingStatus !== 'draft', icon: CheckCircle2 },
+                    { label: 'Email Source', done: bookings.some((b) => b.sourceType === 'email-parsed'), icon: Mail },
+                    { label: 'Booking Parse', done: bookings.filter((b) => b.verificationStatus === 'parsed').length > 0, icon: Activity },
+                    { label: 'Mapping Complete', done: property.mappingCompleteness === 'complete', icon: Link2 },
+                    { label: 'Capture Active', done: priceCaptures.length > 0, icon: ImageIcon },
+                    { label: 'Verification Ready', done: channelAccounts.every((ca) => ca.verificationReady), icon: ShieldCheck },
                   ].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between py-1">
-                      <span className="text-[11px] text-muted-foreground">{item.label}</span>
-                      <StatusBadge status={item.value} size="sm" />
+                    <div key={item.label} className={cn(
+                      "rounded-lg border p-3 text-center",
+                      item.done ? "border-success/30 bg-success/5" : "border-border bg-muted/20"
+                    )}>
+                      <item.icon className={cn(
+                        "mx-auto h-5 w-5",
+                        item.done ? "text-success" : "text-muted-foreground"
+                      )} />
+                      <p className={cn(
+                        "mt-2 text-[10px] font-medium",
+                        item.done ? "text-success" : "text-muted-foreground"
+                      )}>{item.label}</p>
                     </div>
                   ))}
                 </div>
               </div>
+            </div>
 
-              {/* Channel Configuration */}
-              <div className="rounded-md border border-border bg-card">
-                <div className="flex items-center justify-between border-b border-border px-3 py-2">
-                  <span className="text-[12px] font-medium text-foreground">Channel Configuration</span>
-                  <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[10px]" onClick={() => setShowAddChannel(true)}>
-                    <Plus className="h-3 w-3" />
-                    Add Channel
-                  </Button>
+            {/* Channel-by-Channel Onboarding */}
+            <div className="rounded-lg border border-border bg-card">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Radio className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-[13px] font-medium text-foreground">Channel Onboarding Status</span>
                 </div>
-                <div>
-                  {channelAccounts.length === 0 ? (
-                    <div className="p-4 text-center text-[11px] text-muted-foreground">No channels configured</div>
-                  ) : (
-                    channelAccounts.map((ca) => (
-                      <div key={ca.id} className="border-b border-border/50 p-3 last:border-0">
+                <Button size="sm" variant="outline" className="h-7 gap-1.5 px-2 text-[10px]" onClick={() => setShowAddChannel(true)}>
+                  <Plus className="h-3 w-3" />
+                  Add Channel
+                </Button>
+              </div>
+              {channelAccounts.length === 0 ? (
+                <div className="p-6 text-center text-[11px] text-muted-foreground">
+                  No OTA channels configured yet.
+                </div>
+              ) : (
+                <div className="divide-y divide-border/50">
+                  {channelAccounts.map((ca) => {
+                    const channelMappings = mappings.filter((m) => m.channelId === ca.channelId);
+                    const stats = getChannelStats(ca.channelId);
+                    return (
+                      <div key={ca.id} className="p-4">
                         <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-medium text-foreground">{ca.channelName}</span>
-                          <div className="flex items-center gap-1">
-                            <StatusBadge status={ca.setupComplete ? 'complete' : 'partial'} size="xs" />
+                          <div className="flex items-center gap-3">
+                            <div className={cn(
+                              "flex h-9 w-9 items-center justify-center rounded-lg text-[12px] font-bold",
+                              ca.channelName === 'Booking.com' ? "bg-blue-500/15 text-blue-600" :
+                              ca.channelName === 'Agoda' ? "bg-red-500/15 text-red-600" :
+                              ca.channelName === 'Airbnb' ? "bg-pink-500/15 text-pink-600" :
+                              "bg-muted text-muted-foreground"
+                            )}>
+                              {ca.channelName.charAt(0)}
+                            </div>
+                            <div>
+                              <p className="text-[12px] font-semibold text-foreground">{ca.channelName}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {ca.otaPropertyId ? `ID: ${ca.otaPropertyId}` : 'No OTA Property ID'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-5 w-5 p-0"
+                              className="h-6 w-6 p-0"
                               onClick={() => {
                                 setSelectedChannel({
                                   name: ca.channelName,
@@ -416,53 +763,107 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
                                 setShowEditCommission(true);
                               }}
                             >
-                              <Edit className="h-3 w-3" />
+                              <Edit className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         </div>
-                        <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1">
-                          <div className="flex justify-between text-[10px]">
-                            <span className="text-muted-foreground">OTA Property ID</span>
-                            <span className="font-mono text-foreground">{ca.otaPropertyId || '-'}</span>
+
+                        {/* Onboarding Checklist */}
+                        <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-6">
+                          <div className={cn(
+                            "rounded border px-2 py-1.5 text-center",
+                            ca.otaPropertyId ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5"
+                          )}>
+                            <p className={cn("text-[10px] font-medium", ca.otaPropertyId ? "text-success" : "text-warning")}>
+                              {ca.otaPropertyId ? 'ID Set' : 'ID Missing'}
+                            </p>
+                            <p className="text-[8px] text-muted-foreground">OTA Property ID</p>
                           </div>
-                          <div className="flex justify-between text-[10px]">
-                            <span className="text-muted-foreground">Commission</span>
-                            <span className="text-foreground">
-                              {ca.commissionModel === 'percentage' ? `${ca.commissionPercent}%` : ca.commissionModel}
-                            </span>
+                          <div className={cn(
+                            "rounded border px-2 py-1.5 text-center",
+                            ca.commissionModel !== 'unknown' ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5"
+                          )}>
+                            <p className={cn("text-[10px] font-medium", ca.commissionModel !== 'unknown' ? "text-success" : "text-warning")}>
+                              {ca.commissionModel !== 'unknown' ? `${ca.commissionPercent}%` : 'Unknown'}
+                            </p>
+                            <p className="text-[8px] text-muted-foreground">Commission</p>
                           </div>
-                          <div className="flex justify-between text-[10px]">
-                            <span className="text-muted-foreground">Payout</span>
-                            <span className="text-foreground">{ca.payoutModel}</span>
+                          <div className={cn(
+                            "rounded border px-2 py-1.5 text-center",
+                            ca.payoutModel !== 'unknown' ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5"
+                          )}>
+                            <p className={cn("text-[10px] font-medium truncate", ca.payoutModel !== 'unknown' ? "text-success" : "text-warning")}>
+                              {ca.payoutModel !== 'unknown' ? ca.payoutModel.split('-').slice(0, 2).join(' ') : 'Unknown'}
+                            </p>
+                            <p className="text-[8px] text-muted-foreground">Payout</p>
                           </div>
-                          <div className="flex justify-between text-[10px]">
-                            <span className="text-muted-foreground">Mapping</span>
-                            <StatusBadge status={ca.mappingComplete ? 'complete' : 'unmapped'} size="xs" />
+                          <div className={cn(
+                            "rounded border px-2 py-1.5 text-center",
+                            ca.mappingComplete ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5"
+                          )}>
+                            <p className={cn("text-[10px] font-medium", ca.mappingComplete ? "text-success" : "text-warning")}>
+                              {channelMappings.filter((m) => m.status === 'complete').length}/{channelMappings.length || 0}
+                            </p>
+                            <p className="text-[8px] text-muted-foreground">Mappings</p>
+                          </div>
+                          <div className={cn(
+                            "rounded border px-2 py-1.5 text-center",
+                            stats.totalCaptures > 0 ? "border-success/30 bg-success/5" : "border-muted bg-muted/20"
+                          )}>
+                            <p className={cn("text-[10px] font-medium", stats.totalCaptures > 0 ? "text-success" : "text-muted-foreground")}>
+                              {stats.totalCaptures}
+                            </p>
+                            <p className="text-[8px] text-muted-foreground">Captures</p>
+                          </div>
+                          <div className={cn(
+                            "rounded border px-2 py-1.5 text-center",
+                            ca.verificationReady ? "border-success/30 bg-success/5" : "border-muted bg-muted/20"
+                          )}>
+                            <p className={cn("text-[10px] font-medium", ca.verificationReady ? "text-success" : "text-muted-foreground")}>
+                              {ca.verificationReady ? 'Ready' : 'Pending'}
+                            </p>
+                            <p className="text-[8px] text-muted-foreground">Verification</p>
                           </div>
                         </div>
-                        {ca.promotionStackingRule !== 'Not configured' && (
-                          <p className="mt-1 text-[9px] text-muted-foreground">
-                            Promo stacking: {ca.promotionStackingRule}
-                          </p>
+
+                        {/* Warnings */}
+                        {(!ca.otaPropertyId || ca.commissionModel === 'unknown' || !ca.mappingComplete) && (
+                          <div className="mt-3 rounded border border-warning/30 bg-warning/5 p-2">
+                            <p className="text-[10px] font-medium text-warning">Setup incomplete:</p>
+                            <ul className="mt-1 space-y-0.5">
+                              {!ca.otaPropertyId && (
+                                <li className="text-[9px] text-warning">• Missing OTA Property ID - cannot link captures</li>
+                              )}
+                              {ca.commissionModel === 'unknown' && (
+                                <li className="text-[9px] text-warning">• Commission model unknown - net revenue cannot be calculated</li>
+                              )}
+                              {!ca.mappingComplete && (
+                                <li className="text-[9px] text-warning">• Mapping incomplete - price comparisons may be unreliable</li>
+                              )}
+                            </ul>
+                          </div>
                         )}
                       </div>
-                    ))
-                  )}
+                    );
+                  })}
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Mappings */}
-            <div className="rounded-md border border-border bg-card">
-              <div className="flex items-center justify-between border-b border-border px-3 py-2">
-                <span className="text-[12px] font-medium text-foreground">Room/Rate Mappings</span>
-                <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[10px]" onClick={() => setShowAddMapping(true)}>
+            {/* Room/Rate Mappings */}
+            <div className="rounded-lg border border-border bg-card">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Link2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-[13px] font-medium text-foreground">Room/Rate Mappings</span>
+                </div>
+                <Button size="sm" variant="outline" className="h-7 gap-1.5 px-2 text-[10px]" onClick={() => setShowAddMapping(true)}>
                   <Plus className="h-3 w-3" />
                   Add Mapping
                 </Button>
               </div>
               {mappings.length === 0 ? (
-                <div className="p-4 text-center text-[11px] text-muted-foreground">No mappings configured</div>
+                <div className="p-6 text-center text-[11px] text-muted-foreground">No mappings configured</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">

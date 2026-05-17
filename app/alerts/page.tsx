@@ -5,10 +5,10 @@ import { DashboardLayout } from '@/components/dashboard/layout';
 import { FilterBar, FilterConfig, ToolbarSeparator } from '@/components/dashboard/filter-bar';
 import { StatusBadge, SeverityBar } from '@/components/dashboard/status-badge';
 import { InlineKPI } from '@/components/dashboard/kpi-card';
-import { alerts, properties, channels } from '@/lib/mock-data';
+import { alerts, properties } from '@/lib/mock-data';
 import type { Alert } from '@/lib/types';
 import { formatDistanceToNow, format } from 'date-fns';
-import { Camera, ChevronRight, Check, Eye, Clock } from 'lucide-react';
+import { Check, Eye, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,20 +42,21 @@ const filterConfig: FilterConfig[] = [
     ],
   },
   {
-    id: 'issueType',
+    id: 'alertType',
     label: 'Type',
     type: 'select',
     options: [
-      { value: 'parity', label: 'Parity' },
-      { value: 'availability', label: 'Availability' },
-      { value: 'scrape_failure', label: 'Scrape Failure' },
-      { value: 'stale_data', label: 'Stale Data' },
-      { value: 'mapping', label: 'Mapping' },
+      { value: 'price-mismatch', label: 'Price Mismatch' },
+      { value: 'desktop-mobile-divergence', label: 'Desktop vs Mobile' },
+      { value: 'missing-evidence', label: 'Missing Evidence' },
+      { value: 'stale-capture', label: 'Stale Capture' },
+      { value: 'booking-verification-pending', label: 'Booking Verify' },
+      { value: 'payout-missing', label: 'Payout Missing' },
     ],
   },
 ];
 
-const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+const severityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
 export default function AlertsPage() {
   const [filters, setFilters] = React.useState<Record<string, string>>({});
@@ -79,14 +80,14 @@ export default function AlertsPage() {
       if (filters.status && filters.status !== 'all') {
         if (alert.status !== filters.status) return false;
       }
-      if (filters.issueType && filters.issueType !== 'all') {
-        if (alert.issueType !== filters.issueType) return false;
+      if (filters.alertType && filters.alertType !== 'all') {
+        if (alert.alertType !== filters.alertType) return false;
       }
       return true;
     });
 
     return filtered.sort((a, b) => {
-      const severityDiff = severityOrder[a.severity] - severityOrder[b.severity];
+      const severityDiff = (severityOrder[a.severity] ?? 4) - (severityOrder[b.severity] ?? 4);
       if (severityDiff !== 0) return severityDiff;
       return new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime();
     });
@@ -122,7 +123,6 @@ export default function AlertsPage() {
           </Button>
         </FilterBar>
 
-        {/* Alerts list */}
         <div className="flex-1 overflow-auto p-3">
           <div className="rounded-md border border-border bg-card">
             {filteredAlerts.length === 0 ? (
@@ -133,24 +133,19 @@ export default function AlertsPage() {
               filteredAlerts.map((alert) => (
                 <div
                   key={alert.id}
-                  className={cn(
-                    'group flex cursor-pointer items-stretch border-b border-border/50 transition-colors last:border-0 hover:bg-muted/30',
-                  )}
+                  className="group flex cursor-pointer items-stretch border-b border-border/50 transition-colors last:border-0 hover:bg-muted/30"
                   onClick={() => setSelectedAlert(alert)}
                 >
                   <div className="flex w-1 shrink-0 py-2">
                     <SeverityBar severity={alert.severity} />
                   </div>
-                  
+
                   <div className="flex flex-1 items-center gap-3 px-3 py-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="truncate text-[12px] font-medium text-foreground">
                           {alert.title}
                         </span>
-                        {alert.hasEvidence && (
-                          <Camera className="h-3 w-3 shrink-0 text-muted-foreground" />
-                        )}
                       </div>
                       <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
                         <span className="truncate">{alert.propertyName}</span>
@@ -160,12 +155,8 @@ export default function AlertsPage() {
                             <span>{alert.channelName}</span>
                           </>
                         )}
-                        {alert.roomType && (
-                          <>
-                            <span className="text-border">·</span>
-                            <span>{alert.roomType}</span>
-                          </>
-                        )}
+                        <span className="text-border">·</span>
+                        <span className="capitalize">{alert.alertType.replace(/-/g, ' ')}</span>
                       </div>
                     </div>
 
@@ -175,7 +166,6 @@ export default function AlertsPage() {
                       <span className="text-[10px] tabular-nums text-muted-foreground">
                         {formatDistanceToNow(new Date(alert.lastSeen), { addSuffix: false })}
                       </span>
-                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                     </div>
                   </div>
                 </div>
@@ -187,7 +177,7 @@ export default function AlertsPage() {
 
       {/* Alert detail sheet */}
       <Sheet open={!!selectedAlert} onOpenChange={() => setSelectedAlert(null)}>
-        <SheetContent className="w-[380px] border-l border-border bg-card p-0">
+        <SheetContent className="w-[380px] border-l border-border bg-card p-0 overflow-y-auto">
           <SheetHeader className="border-b border-border px-4 py-3">
             <SheetTitle className="flex items-center gap-2 text-[13px]">
               <SeverityBar severity={selectedAlert?.severity || 'low'} className="h-4" />
@@ -200,12 +190,7 @@ export default function AlertsPage() {
               <div className="flex items-center gap-2 border-b border-border px-4 py-2">
                 <StatusBadge status={selectedAlert.severity} size="sm" />
                 <StatusBadge status={selectedAlert.status} size="sm" />
-                {selectedAlert.hasEvidence && (
-                  <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                    <Camera className="h-3 w-3" />
-                    Evidence
-                  </span>
-                )}
+                <StatusBadge status={selectedAlert.alertType} size="sm" />
               </div>
 
               <div className="border-b border-border px-4 py-3">
@@ -213,46 +198,19 @@ export default function AlertsPage() {
               </div>
 
               <div className="border-b border-border">
-                <div className="flex items-center justify-between border-b border-border/50 px-4 py-2">
-                  <span className="text-[11px] text-muted-foreground">Property</span>
-                  <span className="text-[11px] font-medium text-foreground">
-                    {selectedAlert.propertyName}
-                  </span>
-                </div>
-                {selectedAlert.channelName && (
-                  <div className="flex items-center justify-between border-b border-border/50 px-4 py-2">
-                    <span className="text-[11px] text-muted-foreground">Channel</span>
-                    <span className="text-[11px] font-medium text-foreground">
-                      {selectedAlert.channelName}
-                    </span>
+                {[
+                  ['Property', selectedAlert.propertyName],
+                  ...(selectedAlert.channelName ? [['Channel', selectedAlert.channelName]] : []),
+                  ['Alert Type', selectedAlert.alertType.replace(/-/g, ' ')],
+                  ['First Seen', format(new Date(selectedAlert.firstSeen), 'MMM d, HH:mm')],
+                  ['Last Seen', format(new Date(selectedAlert.lastSeen), 'MMM d, HH:mm')],
+                  ['Has Evidence', selectedAlert.hasEvidence ? 'Yes' : 'No'],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between border-b border-border/50 px-4 py-1.5 last:border-0">
+                    <span className="text-[11px] text-muted-foreground">{label}</span>
+                    <span className="text-[11px] font-medium capitalize text-foreground">{value}</span>
                   </div>
-                )}
-                {selectedAlert.roomType && (
-                  <div className="flex items-center justify-between border-b border-border/50 px-4 py-2">
-                    <span className="text-[11px] text-muted-foreground">Room Type</span>
-                    <span className="text-[11px] font-medium text-foreground">
-                      {selectedAlert.roomType}
-                    </span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between border-b border-border/50 px-4 py-2">
-                  <span className="text-[11px] text-muted-foreground">Issue Type</span>
-                  <span className="text-[11px] font-medium capitalize text-foreground">
-                    {selectedAlert.issueType.replace('_', ' ')}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between border-b border-border/50 px-4 py-2">
-                  <span className="text-[11px] text-muted-foreground">First Seen</span>
-                  <span className="text-[11px] tabular-nums text-foreground">
-                    {format(new Date(selectedAlert.firstSeen), 'MMM d, HH:mm')}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between px-4 py-2">
-                  <span className="text-[11px] text-muted-foreground">Last Seen</span>
-                  <span className="text-[11px] tabular-nums text-foreground">
-                    {format(new Date(selectedAlert.lastSeen), 'MMM d, HH:mm')}
-                  </span>
-                </div>
+                ))}
               </div>
 
               <div className="flex gap-2 p-4">
@@ -264,7 +222,7 @@ export default function AlertsPage() {
                 )}
                 <Button variant="outline" size="sm" className="h-7 flex-1 gap-1.5 text-[11px]">
                   <Eye className="h-3.5 w-3.5" />
-                  Evidence
+                  View Property
                 </Button>
                 {selectedAlert.status !== 'resolved' && (
                   <Button size="sm" className="h-7 flex-1 gap-1.5 text-[11px]">

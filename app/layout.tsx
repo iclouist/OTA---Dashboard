@@ -7,8 +7,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'OTA Operations Dashboard',
-  description: 'Internal operations dashboard for OTA channel monitoring, price parity, and availability tracking',
+  title: 'OTA Price & Revenue Console',
+  description: 'OTA price monitoring and booking revenue console for hospitality operators managing multiple properties and OTA channels',
 }
 
 export const viewport: Viewport = {

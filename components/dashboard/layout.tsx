@@ -7,12 +7,9 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
   Building2,
-  Radio,
   DollarSign,
-  CalendarCheck,
+  Receipt,
   AlertTriangle,
-  Camera,
-  Link2,
   Settings,
   ChevronLeft,
   Bell,
@@ -23,12 +20,9 @@ import { Button } from '@/components/ui/button';
 const navigation = [
   { name: 'Overview', href: '/', icon: LayoutDashboard },
   { name: 'Properties', href: '/properties', icon: Building2 },
-  { name: 'Channels', href: '/channels', icon: Radio },
   { name: 'Price Monitor', href: '/price-monitor', icon: DollarSign },
-  { name: 'Availability', href: '/availability', icon: CalendarCheck },
+  { name: 'Bookings', href: '/bookings', icon: Receipt },
   { name: 'Alerts', href: '/alerts', icon: AlertTriangle },
-  { name: 'Evidence', href: '/evidence', icon: Camera },
-  { name: 'Mappings', href: '/mappings', icon: Link2 },
 ];
 
 interface DashboardLayoutProps {
@@ -38,6 +32,10 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = React.useState(false);
+
+  const activeNavItem = navigation.find(
+    (n) => n.href === pathname || (n.href !== '/' && pathname.startsWith(n.href))
+  );
 
   return (
     <div className="flex h-screen bg-background">
@@ -55,7 +53,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
           {!collapsed && (
             <span className="text-[13px] font-semibold tracking-tight text-sidebar-foreground">
-              OTA Ops
+              OTA Console
             </span>
           )}
         </div>
@@ -63,7 +61,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Navigation */}
         <nav className="flex-1 space-y-0.5 px-2 py-2">
           {navigation.map((item) => {
-            const isActive = pathname === item.href || 
+            const isActive =
+              pathname === item.href ||
               (item.href !== '/' && pathname.startsWith(item.href));
             return (
               <Link
@@ -118,14 +117,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <header className="flex h-11 items-center justify-between border-b border-border bg-background px-4">
           <div className="flex items-center gap-2">
             <span className="text-[13px] font-medium text-foreground">
-              {navigation.find((n) => n.href === pathname || (n.href !== '/' && pathname.startsWith(n.href)))?.name || 'Settings'}
+              {activeNavItem?.name || (pathname === '/settings' ? 'Settings' : 'Dashboard')}
             </span>
           </div>
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="sm" className="relative h-7 w-7 p-0">
               <Bell className="h-4 w-4 text-muted-foreground" />
               <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-critical text-[9px] font-medium text-critical-foreground">
-                9
+                {11}
               </span>
             </Button>
             <div className="ml-1 flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground">

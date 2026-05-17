@@ -4,36 +4,35 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/dashboard/layout';
 import { DataTable, Column } from '@/components/dashboard/data-table';
-import { FilterBar, FilterConfig, Toolbar, ToolbarSeparator } from '@/components/dashboard/filter-bar';
+import { FilterBar, FilterConfig, ToolbarSeparator } from '@/components/dashboard/filter-bar';
 import { StatusBadge, StatusDot } from '@/components/dashboard/status-badge';
 import { InlineKPI } from '@/components/dashboard/kpi-card';
 import { properties } from '@/lib/mock-data';
 import type { Property } from '@/lib/types';
-import { formatDistanceToNow } from 'date-fns';
-import { MoreHorizontal, Download, Plus } from 'lucide-react';
+import { Download, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const filterConfig: FilterConfig[] = [
   { id: 'search', label: 'Search', type: 'search', placeholder: 'Search properties...' },
   {
     id: 'status',
-    label: 'Status',
+    label: 'Health',
     type: 'select',
     options: [
       { value: 'healthy', label: 'Healthy' },
       { value: 'warning', label: 'Warning' },
       { value: 'critical', label: 'Critical' },
+      { value: 'unknown', label: 'Unknown' },
     ],
   },
   {
-    id: 'country',
-    label: 'Country',
+    id: 'onboarding',
+    label: 'Status',
     type: 'select',
     options: [
-      { value: 'Thailand', label: 'Thailand' },
-      { value: 'Indonesia', label: 'Indonesia' },
-      { value: 'Singapore', label: 'Singapore' },
-      { value: 'Malaysia', label: 'Malaysia' },
+      { value: 'active', label: 'Active' },
+      { value: 'draft', label: 'Draft' },
+      { value: 'verification-pending', label: 'Verification Pending' },
     ],
   },
 ];
@@ -48,94 +47,106 @@ const columns: Column<Property>[] = [
         <StatusDot status={row.healthStatus} />
         <div>
           <p className="font-medium text-foreground">{row.name}</p>
-          <p className="text-[10px] text-muted-foreground">
-            {row.city}, {row.country}
-          </p>
+          <p className="text-[10px] text-muted-foreground">{row.location}</p>
         </div>
       </div>
     ),
   },
   {
     id: 'channels',
-    header: 'Channels',
-    width: '80px',
-    cell: (row) => (
-      <span className="tabular-nums text-muted-foreground">
-        {row.activeChannels.length}
-      </span>
-    ),
-    className: 'text-center',
-  },
-  {
-    id: 'roomTypes',
-    header: 'Rooms',
-    width: '70px',
-    cell: (row) => (
-      <span className="tabular-nums text-muted-foreground">
-        {row.roomTypes.length}
-      </span>
-    ),
-    className: 'text-center',
-  },
-  {
-    id: 'ratePlans',
-    header: 'Plans',
-    width: '70px',
-    cell: (row) => (
-      <span className="tabular-nums text-muted-foreground">
-        {row.ratePlans.length}
-      </span>
-    ),
-    className: 'text-center',
-  },
-  {
-    id: 'lastSync',
-    header: 'Last Sync',
+    header: 'OTA Channels',
     width: '100px',
-    sortable: true,
-    accessorKey: 'lastSync',
     cell: (row) => (
-      <span className="text-[11px] tabular-nums text-muted-foreground">
-        {formatDistanceToNow(new Date(row.lastSync), { addSuffix: false })}
-      </span>
+      <span className="tabular-nums text-muted-foreground">{row.activeOTAChannels.length}</span>
     ),
+    className: 'text-center',
   },
   {
-    id: 'alertCount',
-    header: 'Alerts',
+    id: 'roomNights',
+    header: 'Nights',
     width: '70px',
     sortable: true,
-    accessorKey: 'alertCount',
+    accessorKey: 'roomNightsSold',
+    cell: (row) => (
+      <span className="tabular-nums font-medium text-foreground">{row.roomNightsSold}</span>
+    ),
+    className: 'text-right',
+  },
+  {
+    id: 'grossRevenue',
+    header: 'Gross Rev',
+    width: '110px',
+    sortable: true,
+    accessorKey: 'grossRevenue',
+    cell: (row) => (
+      <span className="tabular-nums font-medium text-foreground">
+        {row.currency} {row.grossRevenue.toLocaleString()}
+      </span>
+    ),
+    className: 'text-right',
+  },
+  {
+    id: 'commission',
+    header: 'Commission',
+    width: '100px',
+    cell: (row) => (
+      <span className="tabular-nums text-muted-foreground">
+        {row.currency} {row.otaCommission.toLocaleString()}
+      </span>
+    ),
+    className: 'text-right',
+  },
+  {
+    id: 'netRevenue',
+    header: 'Net Rev',
+    width: '110px',
+    sortable: true,
+    accessorKey: 'netRevenue',
+    cell: (row) => (
+      <span className="tabular-nums font-medium text-success">
+        {row.currency} {row.netRevenue.toLocaleString()}
+      </span>
+    ),
+    className: 'text-right',
+  },
+  {
+    id: 'priceIssues',
+    header: 'Issues',
+    width: '65px',
+    sortable: true,
+    accessorKey: 'activePriceIssues',
     cell: (row) => (
       <span
         className={
-          row.alertCount === 0
+          row.activePriceIssues === 0
             ? 'tabular-nums text-muted-foreground'
-            : row.alertCount > 2
+            : row.activePriceIssues > 3
             ? 'tabular-nums font-medium text-critical'
             : 'tabular-nums font-medium text-warning'
         }
       >
-        {row.alertCount}
+        {row.activePriceIssues}
       </span>
     ),
     className: 'text-center',
   },
   {
-    id: 'status',
-    header: 'Status',
+    id: 'mapping',
+    header: 'Mapping',
     width: '90px',
-    cell: (row) => <StatusBadge status={row.healthStatus} size="xs" />,
+    cell: (row) => <StatusBadge status={row.mappingCompleteness} size="xs" />,
   },
   {
-    id: 'actions',
-    header: '',
-    cell: () => (
-      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100">
-        <MoreHorizontal className="h-3.5 w-3.5" />
-      </Button>
-    ),
-    width: '40px',
+    id: 'freshness',
+    header: 'Data',
+    width: '70px',
+    cell: (row) => <StatusBadge status={row.dataFreshness} size="xs" />,
+  },
+  {
+    id: 'healthStatus',
+    header: 'Health',
+    width: '80px',
+    cell: (row) => <StatusBadge status={row.healthStatus} size="xs" />,
   },
 ];
 
@@ -149,7 +160,7 @@ export default function PropertiesPage() {
         const search = filters.search.toLowerCase();
         if (
           !property.name.toLowerCase().includes(search) &&
-          !property.city.toLowerCase().includes(search)
+          !property.location.toLowerCase().includes(search)
         ) {
           return false;
         }
@@ -157,16 +168,15 @@ export default function PropertiesPage() {
       if (filters.status && filters.status !== 'all') {
         if (property.healthStatus !== filters.status) return false;
       }
-      if (filters.country && filters.country !== 'all') {
-        if (property.country !== filters.country) return false;
+      if (filters.onboarding && filters.onboarding !== 'all') {
+        if (property.onboardingStatus !== filters.onboarding) return false;
       }
       return true;
     });
   }, [filters]);
 
-  const healthyCount = filteredProperties.filter(p => p.healthStatus === 'healthy').length;
-  const warningCount = filteredProperties.filter(p => p.healthStatus === 'warning').length;
-  const criticalCount = filteredProperties.filter(p => p.healthStatus === 'critical').length;
+  const healthyCount = filteredProperties.filter((p) => p.healthStatus === 'healthy').length;
+  const totalNights = filteredProperties.reduce((s, p) => s + p.roomNightsSold, 0);
 
   return (
     <DashboardLayout>
@@ -180,8 +190,7 @@ export default function PropertiesPage() {
           <div className="flex items-center gap-3">
             <InlineKPI label="Total" value={filteredProperties.length} />
             <InlineKPI label="Healthy" value={healthyCount} status="success" />
-            <InlineKPI label="Warning" value={warningCount} status={warningCount > 0 ? 'warning' : 'default'} />
-            <InlineKPI label="Critical" value={criticalCount} status={criticalCount > 0 ? 'critical' : 'default'} />
+            <InlineKPI label="Nights" value={totalNights} />
           </div>
           <ToolbarSeparator />
           <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-[11px]">
@@ -190,7 +199,7 @@ export default function PropertiesPage() {
           </Button>
           <Button size="sm" className="h-7 gap-1.5 px-2 text-[11px]">
             <Plus className="h-3.5 w-3.5" />
-            Add
+            Add Property
           </Button>
         </FilterBar>
 

@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { StatusBadge, SeverityBar } from './status-badge';
 import type { Alert } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
-import { Camera, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
 interface AlertRowProps {
   alert: Alert;
@@ -23,7 +23,6 @@ export function AlertRow({ alert, onClick, compact = false, className }: AlertRo
       )}
       onClick={onClick}
     >
-      {/* Severity indicator */}
       <div className="flex w-1 shrink-0 py-2">
         <SeverityBar severity={alert.severity} />
       </div>
@@ -34,9 +33,6 @@ export function AlertRow({ alert, onClick, compact = false, className }: AlertRo
             <span className="truncate text-[12px] font-medium text-foreground">
               {alert.title}
             </span>
-            {alert.hasEvidence && (
-              <Camera className="h-3 w-3 shrink-0 text-muted-foreground" />
-            )}
           </div>
           {!compact && (
             <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">

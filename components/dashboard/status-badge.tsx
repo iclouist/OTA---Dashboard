@@ -1,8 +1,7 @@
 import { cn } from '@/lib/utils';
-import type { HealthStatus, AlertSeverity, AlertStatus, AvailabilityStatus, ParityStatus } from '@/lib/types';
 
 interface StatusBadgeProps {
-  status: HealthStatus | AlertSeverity | AlertStatus | AvailabilityStatus | ParityStatus | string;
+  status: string;
   size?: 'xs' | 'sm' | 'md';
   variant?: 'default' | 'outline' | 'dot';
   className?: string;
@@ -25,26 +24,64 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
   acknowledged: { label: 'Ack', color: 'text-warning', bg: 'bg-warning/10' },
   resolved: { label: 'Resolved', color: 'text-success', bg: 'bg-success/10' },
 
-  // Availability status
-  available: { label: 'Available', color: 'text-success', bg: 'bg-success/10' },
-  sold_out: { label: 'Sold Out', color: 'text-critical', bg: 'bg-critical/10' },
+  // Verification status
+  parsed: { label: 'Parsed', color: 'text-success', bg: 'bg-success/10' },
+  'link-only': { label: 'Link Only', color: 'text-warning', bg: 'bg-warning/10' },
+  'needs-admin-review': { label: 'Needs Review', color: 'text-warning', bg: 'bg-warning/10' },
+  'verified-by-screenshot': { label: 'Screenshot Verified', color: 'text-success', bg: 'bg-success/10' },
   stale: { label: 'Stale', color: 'text-warning', bg: 'bg-warning/10' },
-  mismatch: { label: 'Mismatch', color: 'text-critical', bg: 'bg-critical/10' },
-
-  // Parity status
-  match: { label: 'Match', color: 'text-success', bg: 'bg-success/10' },
-
-  // Mapping status
   pending: { label: 'Pending', color: 'text-warning', bg: 'bg-warning/10' },
-  inactive: { label: 'Inactive', color: 'text-muted-foreground', bg: 'bg-muted' },
 
   // Evidence status
   verified: { label: 'Verified', color: 'text-success', bg: 'bg-success/10' },
   flagged: { label: 'Flagged', color: 'text-critical', bg: 'bg-critical/10' },
 
+  // Source confidence
+  'pending-verification': { label: 'Pending', color: 'text-warning', bg: 'bg-warning/10' },
+
+  // Mapping status
+  complete: { label: 'Complete', color: 'text-success', bg: 'bg-success/10' },
+  partial: { label: 'Partial', color: 'text-warning', bg: 'bg-warning/10' },
+  unmapped: { label: 'Unmapped', color: 'text-critical', bg: 'bg-critical/10' },
+  'needs-verification': { label: 'Needs Verify', color: 'text-warning', bg: 'bg-warning/10' },
+
+  // Onboarding status
+  draft: { label: 'Draft', color: 'text-muted-foreground', bg: 'bg-muted' },
+  'mapping-needed': { label: 'Mapping Needed', color: 'text-warning', bg: 'bg-warning/10' },
+  'email-live': { label: 'Email Live', color: 'text-info', bg: 'bg-info/10' },
+  'price-monitor-live': { label: 'Monitor Live', color: 'text-success', bg: 'bg-success/10' },
+  'verification-pending': { label: 'Verify Pending', color: 'text-warning', bg: 'bg-warning/10' },
+
+  // Data freshness
+  fresh: { label: 'Fresh', color: 'text-success', bg: 'bg-success/10' },
+  missing: { label: 'Missing', color: 'text-critical', bg: 'bg-critical/10' },
+
+  // Device type
+  desktop: { label: 'Desktop', color: 'text-foreground', bg: 'bg-muted' },
+  mobile: { label: 'Mobile', color: 'text-foreground', bg: 'bg-muted' },
+
+  // Compare quality
+  strict: { label: 'Strict', color: 'text-success', bg: 'bg-success/10' },
+  normalized: { label: 'Normalized', color: 'text-info', bg: 'bg-info/10' },
+  uncertain: { label: 'Uncertain', color: 'text-warning', bg: 'bg-warning/10' },
+
+  // Source types
+  'email-parsed': { label: 'Email Parsed', color: 'text-success', bg: 'bg-success/10' },
+  'admin-link-signal': { label: 'Admin Link', color: 'text-warning', bg: 'bg-warning/10' },
+  'screenshot-captured': { label: 'Screenshot', color: 'text-info', bg: 'bg-info/10' },
+  'internal-reference': { label: 'Internal Ref', color: 'text-foreground', bg: 'bg-muted' },
+  'manual-entry': { label: 'Manual', color: 'text-muted-foreground', bg: 'bg-muted' },
+
+  // Evidence availability
+  available: { label: 'Available', color: 'text-success', bg: 'bg-success/10' },
+
   // Generic
+  none: { label: 'None', color: 'text-muted-foreground', bg: 'bg-muted' },
   success: { label: 'Success', color: 'text-success', bg: 'bg-success/10' },
   failed: { label: 'Failed', color: 'text-critical', bg: 'bg-critical/10' },
+  inactive: { label: 'Inactive', color: 'text-muted-foreground', bg: 'bg-muted' },
+  match: { label: 'Match', color: 'text-success', bg: 'bg-success/10' },
+  mismatch: { label: 'Mismatch', color: 'text-critical', bg: 'bg-critical/10' },
 };
 
 export function StatusBadge({ status, size = 'sm', variant = 'default', className }: StatusBadgeProps) {
@@ -89,7 +126,7 @@ export function StatusBadge({ status, size = 'sm', variant = 'default', classNam
 
 // Dot indicator for inline status
 interface StatusDotProps {
-  status: HealthStatus | 'success' | 'failed' | 'pending';
+  status: string;
   size?: 'sm' | 'md';
   className?: string;
 }
@@ -102,6 +139,11 @@ const dotColors: Record<string, string> = {
   critical: 'bg-critical',
   failed: 'bg-critical',
   unknown: 'bg-muted-foreground',
+  active: 'bg-success',
+  draft: 'bg-muted-foreground',
+  stale: 'bg-warning',
+  missing: 'bg-critical',
+  fresh: 'bg-success',
 };
 
 export function StatusDot({ status, size = 'sm', className }: StatusDotProps) {
@@ -120,7 +162,7 @@ export function StatusDot({ status, size = 'sm', className }: StatusDotProps) {
 
 // Severity indicator bar
 interface SeverityBarProps {
-  severity: AlertSeverity;
+  severity: string;
   className?: string;
 }
 

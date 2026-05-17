@@ -9,6 +9,9 @@ import {
   bookingEvents,
   priceCaptures,
   sourceConfidenceSummary,
+  availabilityKPIs,
+  channelAvailabilityStatus,
+  sellabilityIssues,
 } from '@/lib/mock-data';
 import {
   Building2,
@@ -26,6 +29,8 @@ import {
   AlertCircle,
   CheckCircle2,
   XCircle,
+  CalendarCheck,
+  Ban,
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
@@ -353,6 +358,187 @@ export default function OverviewPage() {
                         </div>
                       </Link>
                     ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 2.5: Availability Health */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "flex h-7 w-7 items-center justify-center rounded-md",
+                availabilityKPIs.propertiesAtRisk > 0 || availabilityKPIs.channelsWithSellabilityIssues > 0 ? "bg-warning/10" : "bg-success/10"
+              )}>
+                <CalendarCheck className={cn(
+                  "h-4 w-4",
+                  availabilityKPIs.propertiesAtRisk > 0 || availabilityKPIs.channelsWithSellabilityIssues > 0 ? "text-warning" : "text-success"
+                )} />
+              </div>
+              <div>
+                <h2 className="text-[13px] font-semibold text-foreground">Availability Health</h2>
+                <p className="text-[11px] text-muted-foreground">Channel sellability and inventory status across properties</p>
+              </div>
+            </div>
+            <Link href="/availability" className="flex items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+              View all
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+            {/* Availability Summary Card */}
+            <div className="lg:col-span-4">
+              <div className={cn(
+                "h-full rounded-xl border p-5 shadow-sm",
+                availabilityKPIs.channelsWithSellabilityIssues > 0 ? "border-warning/40 bg-gradient-to-br from-warning/10 via-warning/5 to-transparent" : "border-border bg-card"
+              )}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CalendarCheck className={cn("h-4 w-4", availabilityKPIs.channelsWithSellabilityIssues > 0 ? "text-warning" : "text-success")} />
+                    <span className="text-[13px] font-semibold text-foreground">Availability Status</span>
+                  </div>
+                  <Link href="/availability" className="flex items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+                    Details
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+                
+                <div className="mt-5 grid grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold tabular-nums text-success">
+                      {availabilityKPIs.propertiesOpen}
+                    </p>
+                    <p className="mt-1 text-[10px] font-medium text-success">Open</p>
+                  </div>
+                  <div className="text-center">
+                    <p className={cn("text-3xl font-bold tabular-nums", availabilityKPIs.closedDates > 0 ? "text-critical" : "text-muted-foreground")}>
+                      {availabilityKPIs.closedDates}
+                    </p>
+                    <p className="mt-1 text-[10px] font-medium text-muted-foreground">Closed Dates</p>
+                  </div>
+                  <div className="text-center">
+                    <p className={cn("text-3xl font-bold tabular-nums", availabilityKPIs.staleSyncs > 0 ? "text-warning" : "text-muted-foreground")}>
+                      {availabilityKPIs.staleSyncs}
+                    </p>
+                    <p className="mt-1 text-[10px] font-medium text-muted-foreground">Stale Syncs</p>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex items-center justify-between border-t border-border/50 pt-4">
+                  <div className="flex items-center gap-2">
+                    <Ban className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground">Not sellable</span>
+                  </div>
+                  <span className={cn("text-[11px] font-semibold tabular-nums", availabilityKPIs.channelsWithSellabilityIssues > 0 ? "text-critical" : "text-muted-foreground")}>
+                    {availabilityKPIs.channelsWithSellabilityIssues} channels
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Channel Availability Issues */}
+            <div className="lg:col-span-4">
+              <div className="h-full rounded-xl border border-border bg-card shadow-sm">
+                <div className="flex items-center justify-between border-b border-border px-5 py-3">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-warning" />
+                    <span className="text-[13px] font-semibold text-foreground">Sellability Issues</span>
+                    {sellabilityIssues.filter(i => i.status === 'active').length > 0 && (
+                      <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold text-warning">
+                        {sellabilityIssues.filter(i => i.status === 'active').length}
+                      </span>
+                    )}
+                  </div>
+                  <Link href="/availability" className="flex items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+                    View all
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+                <div>
+                  {sellabilityIssues.filter(i => i.status === 'active').length === 0 ? (
+                    <div className="flex items-center justify-center gap-2 py-10 text-[11px] text-success">
+                      <CheckCircle2 className="h-5 w-5" />
+                      <span className="font-medium">All channels sellable</span>
+                    </div>
+                  ) : (
+                    sellabilityIssues
+                      .filter(i => i.status === 'active')
+                      .sort((a, b) => {
+                        const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+                        return severityOrder[a.severity] - severityOrder[b.severity];
+                      })
+                      .slice(0, 4)
+                      .map((issue) => (
+                        <Link
+                          key={issue.id}
+                          href="/availability"
+                          className="flex items-center gap-3 border-b border-border/50 px-5 py-3 transition-colors last:border-0 hover:bg-muted/30"
+                        >
+                          <div className={cn(
+                            "flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
+                            issue.severity === 'critical' && "bg-critical/15",
+                            issue.severity === 'high' && "bg-warning/15",
+                            issue.severity === 'medium' && "bg-info/15",
+                            issue.severity === 'low' && "bg-muted"
+                          )}>
+                            <AlertTriangle className={cn(
+                              "h-3 w-3",
+                              issue.severity === 'critical' && "text-critical",
+                              issue.severity === 'high' && "text-warning",
+                              issue.severity === 'medium' && "text-info",
+                              issue.severity === 'low' && "text-muted-foreground"
+                            )} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[11px] font-medium text-foreground">{issue.title}</p>
+                            <p className="text-[10px] text-muted-foreground">{issue.propertyName}</p>
+                          </div>
+                        </Link>
+                      ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Channels with Issues */}
+            <div className="lg:col-span-4">
+              <div className="h-full rounded-xl border border-border bg-card shadow-sm">
+                <div className="flex items-center justify-between border-b border-border px-5 py-3">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-[13px] font-semibold text-foreground">Channel Health</span>
+                  </div>
+                </div>
+                <div className="p-5">
+                  {channelAvailabilityStatus
+                    .filter(c => !c.sellable || c.syncStatus === 'stale' || c.syncStatus === 'missing')
+                    .slice(0, 4)
+                    .map((channel) => (
+                      <div key={channel.id} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
+                        <div className="flex items-center gap-2">
+                          <XCircle className="h-3.5 w-3.5 text-critical" />
+                          <div>
+                            <p className="text-[11px] font-medium text-foreground">{channel.channelName}</p>
+                            <p className="text-[10px] text-muted-foreground">{channel.propertyName.split(' ').slice(0, 2).join(' ')}</p>
+                          </div>
+                        </div>
+                        <span className={cn(
+                          "rounded-full px-2 py-0.5 text-[9px] font-semibold",
+                          !channel.sellable ? "bg-critical/15 text-critical" : "bg-warning/15 text-warning"
+                        )}>
+                          {!channel.sellable ? 'Not Sellable' : 'Stale'}
+                        </span>
+                      </div>
+                    ))}
+                  {channelAvailabilityStatus.filter(c => !c.sellable || c.syncStatus === 'stale' || c.syncStatus === 'missing').length === 0 && (
+                    <div className="flex items-center justify-center gap-2 py-6 text-[11px] text-success">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span className="font-medium">All channels healthy</span>
+                    </div>
                   )}
                 </div>
               </div>

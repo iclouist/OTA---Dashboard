@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { use, useRouter } from 'next/navigation';
+import { use } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/dashboard/layout';
 import { StatusBadge, StatusDot } from '@/components/dashboard/status-badge';

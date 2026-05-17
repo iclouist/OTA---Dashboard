@@ -24,22 +24,33 @@ import {
   MousePointer,
   HelpCircle,
   Info,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/dashboard/status-badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import type { OTAChannelProfile } from '@/lib/types';
 
-// OTA Channel Profile data
-const otaChannelProfiles = [
+// Original static definitions for fallback
+const originalOtaProfiles: OTAChannelProfile[] = [
   {
     id: 'booking',
     name: 'Booking.com',
     color: 'blue',
-    defaultCommissionModel: 'percentage' as CommissionModel,
+    defaultCommissionModel: 'percentage',
     defaultCommissionPercent: 15,
-    payoutModel: 'collect-and-remit' as PayoutModel,
+    payoutModel: 'collect-and-remit',
     expectedSourceType: 'admin-link-signal',
     expectedVerificationMode: 'Admin extranet login required',
     promoStackingBehavior: 'Genius + mobile discount may stack',
@@ -47,14 +58,15 @@ const otaChannelProfiles = [
     notes: 'Commission deducted from guest payment before remit. Booking.com collects, remits to property minus commission.',
     feeVisibility: 'All-inclusive pricing shown to guest',
     cancellationBehavior: 'Policy-dependent refunds processed through Booking.com',
+    enabled: true,
   },
   {
     id: 'agoda',
     name: 'Agoda',
     color: 'red',
-    defaultCommissionModel: 'percentage' as CommissionModel,
+    defaultCommissionModel: 'percentage',
     defaultCommissionPercent: 18,
-    payoutModel: 'virtual-card' as PayoutModel,
+    payoutModel: 'virtual-card',
     expectedSourceType: 'email-parsed',
     expectedVerificationMode: 'Email parsing provides rich booking data',
     promoStackingBehavior: 'Secret deals + insider deals may stack',
@@ -62,14 +74,15 @@ const otaChannelProfiles = [
     notes: 'Agoda collects full amount, remits via virtual card minus commission. Higher commission but often better conversion.',
     feeVisibility: 'May show base price + fees separately in some markets',
     cancellationBehavior: 'Refunds processed via virtual card reversal or new payment',
+    enabled: true,
   },
   {
     id: 'airbnb',
     name: 'Airbnb',
     color: 'pink',
-    defaultCommissionModel: 'percentage' as CommissionModel,
+    defaultCommissionModel: 'percentage',
     defaultCommissionPercent: 3,
-    payoutModel: 'bank-transfer' as PayoutModel,
+    payoutModel: 'bank-transfer',
     expectedSourceType: 'screenshot-captured',
     expectedVerificationMode: 'Manual screenshot or host dashboard verification',
     promoStackingBehavior: 'Host discount only - no platform promos',
@@ -77,14 +90,15 @@ const otaChannelProfiles = [
     notes: 'Host-only fee model (3%). Airbnb charges guest a separate service fee not visible in host pricing.',
     feeVisibility: 'Display price includes guest service fee (14-16%)',
     cancellationBehavior: 'Host sets policy, Airbnb mediates disputes',
+    enabled: true,
   },
   {
     id: 'expedia',
     name: 'Expedia',
     color: 'yellow',
-    defaultCommissionModel: 'percentage' as CommissionModel,
+    defaultCommissionModel: 'percentage',
     defaultCommissionPercent: 18,
-    payoutModel: 'virtual-card' as PayoutModel,
+    payoutModel: 'virtual-card',
     expectedSourceType: 'admin-link-signal',
     expectedVerificationMode: 'Partner Central extranet',
     promoStackingBehavior: 'Member pricing + package deals may stack',
@@ -92,6 +106,7 @@ const otaChannelProfiles = [
     notes: 'Similar to Agoda (same group). Virtual card payout with variable timing.',
     feeVisibility: 'May show differently in package vs. standalone booking',
     cancellationBehavior: 'Policy-dependent, processed through Expedia',
+    enabled: true,
   },
 ];
 
@@ -146,7 +161,9 @@ const verificationStrategies = [
 ];
 
 export default function SettingsPage() {
+  const [profiles, setProfiles] = React.useState<OTAChannelProfile[]>(originalOtaProfiles);
   const [showEditCommission, setShowEditCommission] = React.useState(false);
+  const [editingProfileId, setEditingProfileId] = React.useState<string | null>(null);
   const [selectedCommission, setSelectedCommission] = React.useState<{
     channelName: string;
     model: CommissionModel;
@@ -154,6 +171,55 @@ export default function SettingsPage() {
     payoutModel: PayoutModel;
     notes: string;
   } | null>(null);
+
+  // Profile Edit fields
+  const [editCommission, setEditCommission] = React.useState<number>(15);
+  const [editPayout, setEditPayout] = React.useState<PayoutModel>('collect-and-remit');
+  const [editNotes, setEditNotes] = React.useState<string>('');
+
+  const handleSaveProfile = (id: string) => {
+    setProfiles((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              defaultCommissionPercent: editCommission,
+              payoutModel: editPayout,
+              notes: editNotes,
+            }
+          : p
+      )
+    );
+    setEditingProfileId(null);
+    console.log('[v0] Saved profile edits for:', id);
+  };
+
+  const handleAddChannel = () => {
+    const newId = `custom-${Date.now()}`;
+    const newProfile: OTAChannelProfile = {
+      id: newId,
+      name: `Custom OTA #${profiles.length + 1}`,
+      color: 'muted',
+      defaultCommissionModel: 'percentage',
+      defaultCommissionPercent: 15,
+      payoutModel: 'unknown',
+      expectedSourceType: 'manual-entry',
+      expectedVerificationMode: 'Manual admin verification required',
+      promoStackingBehavior: 'Standard rules apply',
+      compareCaveats: 'None configured yet.',
+      notes: 'Custom configured channel account.',
+      feeVisibility: 'All visible',
+      cancellationBehavior: 'Policy-dependent',
+      enabled: true,
+    };
+    setProfiles((prev) => [...prev, newProfile]);
+    console.log('[v0] Added new channel profile:', newProfile);
+  };
+
+  const handleDeleteProfile = (id: string) => {
+    setProfiles((prev) => prev.filter((p) => p.id !== id));
+    console.log('[v0] Deleted channel profile:', id);
+  };
 
   return (
     <DashboardLayout>
@@ -178,15 +244,26 @@ export default function SettingsPage() {
           {/* OTA Channel Profiles Tab */}
           <TabsContent value="channels" className="space-y-4">
             <div className="rounded-lg border border-border bg-card">
-              <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <h2 className="text-[13px] font-medium text-foreground">OTA Channel Profiles</h2>
-                  <p className="text-[11px] text-muted-foreground">Default behaviors and expectations for each OTA</p>
+              <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <h2 className="text-[13px] font-medium text-foreground">OTA Channel Profiles</h2>
+                    <p className="text-[11px] text-muted-foreground">Default behaviors and expectations for each OTA</p>
+                  </div>
                 </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 gap-1 px-2 text-[10px]"
+                  onClick={handleAddChannel}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add Channel Profile
+                </Button>
               </div>
               <div className="divide-y divide-border/50">
-                {otaChannelProfiles.map((ota) => (
+                {profiles.map((ota) => (
                   <div key={ota.id} className="p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
@@ -205,53 +282,144 @@ export default function SettingsPage() {
                           <p className="text-[10px] text-muted-foreground">{ota.notes}</p>
                         </div>
                       </div>
+                      <div className="flex items-center gap-1.5">
+                        {editingProfileId === ota.id ? (
+                          <>
+                            <Button
+                              size="sm"
+                              className="h-7 text-[10px] px-2.5"
+                              onClick={() => handleSaveProfile(ota.id)}
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-[10px] px-2.5"
+                              onClick={() => setEditingProfileId(null)}
+                            >
+                              Cancel
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-[10px] px-2 gap-1"
+                              onClick={() => {
+                                setEditingProfileId(ota.id);
+                                setEditCommission(ota.defaultCommissionPercent);
+                                setEditPayout(ota.payoutModel);
+                                setEditNotes(ota.notes);
+                              }}
+                            >
+                              <Edit className="h-3 w-3" />
+                              Customize
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-[10px] px-2 text-critical hover:bg-critical/10"
+                              onClick={() => handleDeleteProfile(ota.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-                      <div className="rounded-lg border border-border bg-muted/20 p-3">
-                        <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Commission</p>
-                        <p className="mt-1 text-[14px] font-bold text-foreground">{ota.defaultCommissionPercent}%</p>
-                        <p className="text-[10px] text-muted-foreground">{ota.defaultCommissionModel}</p>
+                    {editingProfileId === ota.id ? (
+                      <div className="mt-4 p-3 rounded-lg border border-border bg-muted/20 space-y-3">
+                        <p className="text-[10px] font-bold text-foreground">Customize Channel Rules</p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-muted-foreground">Default Commission (%)</label>
+                            <Input
+                              type="number"
+                              value={editCommission}
+                              onChange={(e) => setEditCommission(parseFloat(e.target.value) || 0)}
+                              className="h-8 text-[11px]"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-muted-foreground">Payout Model</label>
+                            <Select
+                              value={editPayout}
+                              onValueChange={(v) => setEditPayout(v as PayoutModel)}
+                            >
+                              <SelectTrigger className="h-8 text-[11px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="collect-and-remit">Collect & Remit</SelectItem>
+                                <SelectItem value="pay-at-property">Pay at Property</SelectItem>
+                                <SelectItem value="virtual-card">Virtual Card</SelectItem>
+                                <SelectItem value="bank-transfer">Bank Transfer</SelectItem>
+                                <SelectItem value="unknown">Unknown</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1 md:col-span-3">
+                            <label className="text-[10px] text-muted-foreground">Profile Notes</label>
+                            <Textarea
+                              value={editNotes}
+                              onChange={(e) => setEditNotes(e.target.value)}
+                              className="min-h-[50px] text-[11px]"
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div className="rounded-lg border border-border bg-muted/20 p-3">
-                        <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Payout</p>
-                        <p className="mt-1">
-                          <StatusBadge status={ota.payoutModel} size="sm" />
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-border bg-muted/20 p-3">
-                        <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Primary Source</p>
-                        <p className="mt-1">
-                          <StatusBadge status={ota.expectedSourceType} size="sm" />
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-border bg-muted/20 p-3">
-                        <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Verification</p>
-                        <p className="mt-1 text-[10px] text-foreground">{ota.expectedVerificationMode}</p>
-                      </div>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+                          <div className="rounded-lg border border-border bg-muted/20 p-3">
+                            <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Commission</p>
+                            <p className="mt-1 text-[14px] font-bold text-foreground">{ota.defaultCommissionPercent}%</p>
+                            <p className="text-[10px] text-muted-foreground">{ota.defaultCommissionModel}</p>
+                          </div>
+                          <div className="rounded-lg border border-border bg-muted/20 p-3">
+                            <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Payout</p>
+                            <p className="mt-1">
+                              <StatusBadge status={ota.payoutModel} size="sm" />
+                            </p>
+                          </div>
+                          <div className="rounded-lg border border-border bg-muted/20 p-3">
+                            <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Primary Source</p>
+                            <p className="mt-1">
+                              <StatusBadge status={ota.expectedSourceType} size="sm" />
+                            </p>
+                          </div>
+                          <div className="rounded-lg border border-border bg-muted/20 p-3">
+                            <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Verification</p>
+                            <p className="mt-1 text-[10px] text-foreground">{ota.expectedVerificationMode}</p>
+                          </div>
+                        </div>
 
-                    <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
-                      <div className="rounded border border-info/30 bg-info/5 p-2.5">
-                        <p className="text-[9px] font-semibold uppercase tracking-wider text-info">Promo Stacking</p>
-                        <p className="mt-1 text-[10px] text-foreground">{ota.promoStackingBehavior}</p>
-                      </div>
-                      <div className="rounded border border-warning/30 bg-warning/5 p-2.5">
-                        <p className="text-[9px] font-semibold uppercase tracking-wider text-warning">Compare Caveats</p>
-                        <p className="mt-1 text-[10px] text-foreground">{ota.compareCaveats}</p>
-                      </div>
-                    </div>
+                        <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                          <div className="rounded border border-info/30 bg-info/5 p-2.5">
+                            <p className="text-[9px] font-semibold uppercase tracking-wider text-info">Promo Stacking</p>
+                            <p className="mt-1 text-[10px] text-foreground">{ota.promoStackingBehavior}</p>
+                          </div>
+                          <div className="rounded border border-warning/30 bg-warning/5 p-2.5">
+                            <p className="text-[9px] font-semibold uppercase tracking-wider text-warning">Compare Caveats</p>
+                            <p className="mt-1 text-[10px] text-foreground">{ota.compareCaveats}</p>
+                          </div>
+                        </div>
 
-                    <div className="mt-3 flex gap-4 text-[10px]">
-                      <div>
-                        <span className="text-muted-foreground">Fee visibility: </span>
-                        <span className="text-foreground">{ota.feeVisibility}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Cancellation: </span>
-                        <span className="text-foreground">{ota.cancellationBehavior}</span>
-                      </div>
-                    </div>
+                        <div className="mt-3 flex gap-4 text-[10px]">
+                          <div>
+                            <span className="text-muted-foreground">Fee visibility: </span>
+                            <span className="text-foreground">{ota.feeVisibility}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Cancellation: </span>
+                            <span className="text-foreground">{ota.cancellationBehavior}</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>

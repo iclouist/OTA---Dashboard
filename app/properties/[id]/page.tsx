@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { use } from 'react';
+import { use, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/dashboard/layout';
 import { StatusBadge, StatusDot } from '@/components/dashboard/status-badge';
@@ -47,11 +47,22 @@ import {
   AlertCircle,
   Radio,
   CreditCard,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn, formatVND } from '@/lib/utils';
 import { notFound } from 'next/navigation';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface PropertyDetailPageProps {
   params: Promise<{ id: string }>;
@@ -59,12 +70,14 @@ interface PropertyDetailPageProps {
 
 export default function PropertyDetailPage({ params }: PropertyDetailPageProps) {
   const { id } = use(params);
+  const router = useRouter();
   const property = getPropertyById(id);
 
   const [showAddChannel, setShowAddChannel] = React.useState(false);
   const [showAddMapping, setShowAddMapping] = React.useState(false);
   const [showAddCapture, setShowAddCapture] = React.useState(false);
   const [showEditCommission, setShowEditCommission] = React.useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [selectedChannel, setSelectedChannel] = React.useState<{
     name: string;
     model: 'percentage' | 'fixed-per-night' | 'tiered' | 'unknown';
@@ -131,6 +144,15 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
               </div>
             </div>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 border-critical/30 text-critical hover:bg-critical/10 gap-1.5 text-[11px]"
+            onClick={() => setShowDeleteConfirm(true)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete Property
+          </Button>
         </div>
 
         {/* Tabs */}
@@ -146,6 +168,35 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
 
           {/* Summary Tab */}
           <TabsContent value="summary" className="space-y-4">
+            {/* Room Specs Metadata Bar */}
+            <div className="rounded-lg border border-border bg-card p-3 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded bg-muted/60">
+                  <BedDouble className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Primary Room Specification</p>
+                  <p className="text-[12px] font-semibold text-foreground">{property.roomType || 'Deluxe Room (Default)'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-6">
+                <div className="text-right">
+                  <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider">Inventory</p>
+                  <p className="text-[12px] font-semibold text-foreground">{property.roomCount || 10} rooms</p>
+                </div>
+                <div className="h-6 w-px bg-border" />
+                <div className="text-right">
+                  <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider">Beds / Room</p>
+                  <p className="text-[12px] font-semibold text-foreground">{property.bedsPerRoom || 2} Beds</p>
+                </div>
+                <div className="h-6 w-px bg-border" />
+                <div className="text-right">
+                  <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider">Capacity</p>
+                  <p className="text-[12px] font-semibold text-foreground">{property.capacityPerRoom || 2} Pax</p>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-3 gap-3 md:grid-cols-6">
               <KPICard title="Room Nights" value={property.roomNightsSold} icon={BedDouble} />
               <KPICard title="Gross Revenue" value={formatVND(property.grossRevenue, true)} icon={Banknote} />
@@ -946,6 +997,31 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
           console.log('[v0] Update commission:', data);
         }}
       />
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[14px]">Delete Property</AlertDialogTitle>
+            <AlertDialogDescription className="text-[12px]">
+              Are you sure you want to delete <strong>{property.name}</strong>? This action is permanent and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-8 text-[11px]">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="h-8 bg-critical hover:bg-critical/90 text-white text-[11px]"
+              onClick={() => {
+                console.log('[v0] Deleted property:', property.id);
+                setShowDeleteConfirm(false);
+                router.push('/properties');
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
+

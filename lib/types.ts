@@ -66,6 +66,10 @@ export interface Property {
   location: string;
   timezone: string;
   currency: string;
+  roomType?: string;
+  roomCount?: number;
+  bedsPerRoom?: number;
+  capacityPerRoom?: number;
   activeOTAChannels: string[];
   roomNightsSold: number;
   grossRevenue: number;
@@ -200,6 +204,23 @@ export interface CommissionAssumption {
   defaultPercent: number;
   payoutModel: PayoutModel;
   notes: string;
+}
+
+export interface OTAChannelProfile {
+  id: string;
+  name: string;
+  color: string;
+  defaultCommissionModel: CommissionModel;
+  defaultCommissionPercent: number;
+  payoutModel: PayoutModel;
+  expectedSourceType: SourceType;
+  expectedVerificationMode: string;
+  promoStackingBehavior: string;
+  compareCaveats: string;
+  notes: string;
+  feeVisibility: string;
+  cancellationBehavior: string;
+  enabled: boolean;
 }
 
 export interface Settings {

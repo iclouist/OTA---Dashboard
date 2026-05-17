@@ -10,9 +10,19 @@ import { InlineKPI } from '@/components/dashboard/kpi-card';
 import { AddPropertyModal } from '@/components/dashboard/modals';
 import { properties } from '@/lib/mock-data';
 import type { Property } from '@/lib/types';
-import { Download, Plus } from 'lucide-react';
+import { Download, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatVND } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const filterConfig: FilterConfig[] = [
   { id: 'search', label: 'Search', type: 'search', placeholder: 'Search properties...' },
@@ -163,11 +173,40 @@ const columns: Column<Property>[] = [
 
 export default function PropertiesPage() {
   const router = useRouter();
+  const [localProperties, setLocalProperties] = React.useState<Property[]>(properties);
   const [filters, setFilters] = React.useState<Record<string, string>>({});
   const [showAddProperty, setShowAddProperty] = React.useState(false);
+  const [propertyToDelete, setPropertyToDelete] = React.useState<Property | null>(null);
+
+  // Extend columns dynamically to include Delete action
+  const dynamicColumns = React.useMemo(() => {
+    const cols: Column<Property>[] = [
+      ...columns,
+      {
+        id: 'actions',
+        header: 'Actions',
+        width: '70px',
+        cell: (row) => (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-muted-foreground hover:text-critical"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPropertyToDelete(row);
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        ),
+        className: 'text-center',
+      }
+    ];
+    return cols;
+  }, []);
 
   const filteredProperties = React.useMemo(() => {
-    return properties.filter((property) => {
+    return localProperties.filter((property) => {
       if (filters.search) {
         const search = filters.search.toLowerCase();
         if (
@@ -185,7 +224,7 @@ export default function PropertiesPage() {
       }
       return true;
     });
-  }, [filters]);
+  }, [localProperties, filters]);
 
   const healthyCount = filteredProperties.filter((p) => p.healthStatus === 'healthy').length;
   const activeCount = filteredProperties.filter((p) => p.onboardingStatus === 'active').length;
@@ -221,7 +260,7 @@ export default function PropertiesPage() {
 
         <div className="flex-1 overflow-auto p-3">
           <DataTable
-            columns={columns}
+            columns={dynamicColumns}
             data={filteredProperties}
             onRowClick={(property) => router.push(`/properties/${property.id}`)}
             compact
@@ -234,10 +273,57 @@ export default function PropertiesPage() {
         open={showAddProperty}
         onOpenChange={setShowAddProperty}
         onSubmit={(data) => {
-          console.log('[v0] Add property:', data);
-          // In a real app, this would call an API
+          const newProperty: Property = {
+            id: `prop-${Date.now()}`,
+            name: data.name,
+            location: data.location,
+            currency: 'VND',
+            roomType: data.roomType,
+            roomCount: data.roomCount,
+            bedsPerRoom: data.bedsPerRoom,
+            capacityPerRoom: data.capacityPerRoom,
+            activeOTAChannels: [],
+            roomNightsSold: 0,
+            grossRevenue: 0,
+            otaCommission: 0,
+            netRevenue: 0,
+            activePriceIssues: 0,
+            mappingCompleteness: 'unmapped',
+            dataFreshness: 'missing',
+            healthStatus: 'unknown',
+            onboardingStatus: data.onboardingStatus,
+            alertCount: 0,
+          };
+          setLocalProperties((prev) => [newProperty, ...prev]);
+          console.log('[v0] Added property:', newProperty);
         }}
       />
+
+      <AlertDialog open={!!propertyToDelete} onOpenChange={(open) => !open && setPropertyToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[14px]">Delete Property</AlertDialogTitle>
+            <AlertDialogDescription className="text-[12px]">
+              Are you sure you want to delete <strong>{propertyToDelete?.name}</strong>? This action will permanently remove the property from monitoring.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-8 text-[11px]">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="h-8 bg-critical hover:bg-critical/90 text-white text-[11px]"
+              onClick={() => {
+                if (propertyToDelete) {
+                  setLocalProperties((prev) => prev.filter((p) => p.id !== propertyToDelete.id));
+                  console.log('[v0] Deleted property:', propertyToDelete.id);
+                  setPropertyToDelete(null);
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

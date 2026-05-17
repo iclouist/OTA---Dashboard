@@ -52,11 +52,15 @@ interface AddPropertyModalProps {
   onSubmit?: (data: AddPropertyData) => void;
 }
 
-interface AddPropertyData {
+export interface AddPropertyData {
   name: string;
   location: string;
   currency: string;
   timezone: string;
+  roomType: string;
+  roomCount: number;
+  bedsPerRoom: number;
+  capacityPerRoom: number;
   onboardingStatus: OnboardingStatus;
 }
 
@@ -64,8 +68,12 @@ export function AddPropertyModal({ open, onOpenChange, onSubmit }: AddPropertyMo
   const [formData, setFormData] = React.useState<AddPropertyData>({
     name: '',
     location: '',
-    currency: 'THB',
-    timezone: 'Asia/Bangkok',
+    currency: 'VND',
+    timezone: 'Asia/Ho_Chi_Minh',
+    roomType: '',
+    roomCount: 1,
+    bedsPerRoom: 1,
+    capacityPerRoom: 2,
     onboardingStatus: 'draft',
   });
 
@@ -73,7 +81,7 @@ export function AddPropertyModal({ open, onOpenChange, onSubmit }: AddPropertyMo
     e.preventDefault();
     onSubmit?.(formData);
     onOpenChange(false);
-    setFormData({ name: '', location: '', currency: 'THB', timezone: 'Asia/Bangkok', onboardingStatus: 'draft' });
+    setFormData({ name: '', location: '', currency: 'VND', timezone: 'Asia/Ho_Chi_Minh', roomType: '', roomCount: 1, bedsPerRoom: 1, capacityPerRoom: 2, onboardingStatus: 'draft' });
   };
 
   return (
@@ -117,12 +125,7 @@ export function AddPropertyModal({ open, onOpenChange, onSubmit }: AddPropertyMo
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="THB">THB - Thai Baht</SelectItem>
-                    <SelectItem value="USD">USD - US Dollar</SelectItem>
-                    <SelectItem value="SGD">SGD - Singapore Dollar</SelectItem>
-                    <SelectItem value="MYR">MYR - Malaysian Ringgit</SelectItem>
-                    <SelectItem value="IDR">IDR - Indonesian Rupiah</SelectItem>
-                    <SelectItem value="EUR">EUR - Euro</SelectItem>
+                    <SelectItem value="VND">VND - Vietnamese Dong</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -133,32 +136,54 @@ export function AddPropertyModal({ open, onOpenChange, onSubmit }: AddPropertyMo
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="Asia/Ho_Chi_Minh">Asia/Ho_Chi_Minh</SelectItem>
                     <SelectItem value="Asia/Bangkok">Asia/Bangkok</SelectItem>
                     <SelectItem value="Asia/Singapore">Asia/Singapore</SelectItem>
-                    <SelectItem value="Asia/Kuala_Lumpur">Asia/Kuala_Lumpur</SelectItem>
-                    <SelectItem value="Asia/Jakarta">Asia/Jakarta</SelectItem>
-                    <SelectItem value="Asia/Makassar">Asia/Makassar</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label className="text-[11px]">Initial Onboarding Status</Label>
-              <div className="flex flex-wrap gap-2">
-                {(['draft', 'mapping-needed', 'email-live', 'price-monitor-live', 'verification-pending', 'active'] as OnboardingStatus[]).map((status) => (
-                  <button
-                    key={status}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, onboardingStatus: status })}
-                    className={`rounded border px-2 py-1 text-[10px] transition-colors ${
-                      formData.onboardingStatus === status
-                        ? 'border-info bg-info/10 text-info'
-                        : 'border-border bg-background text-muted-foreground hover:border-muted-foreground'
-                    }`}
-                  >
-                    {status}
-                  </button>
-                ))}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label htmlFor="roomType" className="text-[11px]">Primary Room Type</Label>
+                <Input
+                  id="roomType"
+                  value={formData.roomType}
+                  onChange={(e) => setFormData({ ...formData, roomType: e.target.value })}
+                  placeholder="e.g., Deluxe Double"
+                  className="h-9 text-[12px]"
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-[11px]">Initial Onboarding Status</Label>
+                <Select value={formData.onboardingStatus} onValueChange={(v) => setFormData({ ...formData, onboardingStatus: v as OnboardingStatus })}>
+                  <SelectTrigger className="h-9 text-[12px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="mapping-needed">Mapping Needed</SelectItem>
+                    <SelectItem value="email-live">Email Live</SelectItem>
+                    <SelectItem value="price-monitor-live">Price Monitor Live</SelectItem>
+                    <SelectItem value="verification-pending">Verification Pending</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="grid gap-2">
+                <Label htmlFor="roomCount" className="text-[11px]">Room Count</Label>
+                <Input id="roomCount" type="number" min={1} value={formData.roomCount} onChange={(e) => setFormData({ ...formData, roomCount: parseInt(e.target.value || '1', 10) || 1 })} className="h-9 text-[12px]" required />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="bedsPerRoom" className="text-[11px]">Beds / Room</Label>
+                <Input id="bedsPerRoom" type="number" min={1} value={formData.bedsPerRoom} onChange={(e) => setFormData({ ...formData, bedsPerRoom: parseInt(e.target.value || '1', 10) || 1 })} className="h-9 text-[12px]" required />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="capacityPerRoom" className="text-[11px]">Capacity / Room</Label>
+                <Input id="capacityPerRoom" type="number" min={1} value={formData.capacityPerRoom} onChange={(e) => setFormData({ ...formData, capacityPerRoom: parseInt(e.target.value || '2', 10) || 2 })} className="h-9 text-[12px]" required />
               </div>
             </div>
           </div>

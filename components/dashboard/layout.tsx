@@ -14,14 +14,16 @@ import {
   ChevronLeft,
   Bell,
   Command,
+  CalendarCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const navigation = [
   { name: 'Overview', href: '/', icon: LayoutDashboard },
-  { name: 'Properties', href: '/properties', icon: Building2 },
+  { name: 'Availability', href: '/availability', icon: CalendarCheck },
   { name: 'Price Monitor', href: '/price-monitor', icon: DollarSign },
   { name: 'Bookings', href: '/bookings', icon: Receipt },
+  { name: 'Properties', href: '/properties', icon: Building2 },
   { name: 'Alerts', href: '/alerts', icon: AlertTriangle },
 ];
 

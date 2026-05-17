@@ -8,7 +8,7 @@ import { AddPriceCaptureModal } from '@/components/dashboard/modals';
 import { priceCaptures, properties, mappingRecords, getMappingsByProperty } from '@/lib/mock-data';
 import type { PriceCapture } from '@/lib/types';
 import { format, formatDistanceToNow } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, formatVND } from '@/lib/utils';
 import {
   Download,
   RefreshCw,
@@ -564,13 +564,13 @@ export default function PriceMonitorPage() {
                             <div className="text-right">
                               <p className="text-[10px] text-muted-foreground">Best</p>
                               <p className="text-[12px] font-bold tabular-nums text-success">
-                                {cluster.currency} {cluster.bestPrice.toLocaleString()}
+                                {formatVND(cluster.bestPrice)}
                               </p>
                             </div>
                             <div className="text-right">
                               <p className="text-[10px] text-muted-foreground">Worst</p>
                               <p className="text-[12px] font-bold tabular-nums text-foreground">
-                                {cluster.currency} {cluster.worstPrice.toLocaleString()}
+                                {formatVND(cluster.worstPrice)}
                               </p>
                             </div>
                             <div className="text-right min-w-[60px]">
@@ -657,13 +657,13 @@ export default function PriceMonitorPage() {
                                   <div className="text-right min-w-[90px]">
                                     <p className="text-[10px] text-muted-foreground">Display</p>
                                     <p className="text-[13px] font-bold tabular-nums text-foreground">
-                                      {pc.currency} {pc.displayPrice.toLocaleString()}
+                                      {formatVND(pc.displayPrice)}
                                     </p>
                                   </div>
                                   <div className="text-right min-w-[80px]">
                                     <p className="text-[10px] text-muted-foreground">Ref</p>
                                     <p className="text-[11px] tabular-nums text-muted-foreground">
-                                      {pc.currency} {pc.referencePrice.toLocaleString()}
+                                      {formatVND(pc.referencePrice)}
                                     </p>
                                   </div>
                                   <div className="text-right min-w-[60px]">
@@ -771,10 +771,10 @@ export default function PriceMonitorPage() {
                           {format(new Date(pc.stayDate), 'MMM d')}
                         </td>
                         <td className="px-2 py-2.5 text-right text-[13px] font-bold tabular-nums text-foreground">
-                          {pc.currency} {pc.displayPrice.toLocaleString()}
+                          {formatVND(pc.displayPrice)}
                         </td>
                         <td className="px-2 py-2.5 text-right text-[11px] tabular-nums text-muted-foreground">
-                          {pc.currency} {pc.referencePrice.toLocaleString()}
+                          {formatVND(pc.referencePrice)}
                         </td>
                         <td className="px-2 py-2.5 text-right">
                           <span className={cn(
@@ -855,14 +855,14 @@ export default function PriceMonitorPage() {
                     <div className="rounded-xl border border-border bg-gradient-to-br from-muted/30 to-transparent p-4">
                       <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Display Price</p>
                       <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">
-                        {selectedCapture.currency} {selectedCapture.displayPrice.toLocaleString()}
+                        {formatVND(selectedCapture.displayPrice)}
                       </p>
                       <p className="mt-1 text-[10px] text-muted-foreground">OTA selling price</p>
                     </div>
                     <div className="rounded-xl border border-border bg-muted/10 p-4">
                       <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Reference Price</p>
                       <p className="mt-2 text-2xl font-bold tabular-nums text-muted-foreground">
-                        {selectedCapture.currency} {selectedCapture.referencePrice.toLocaleString()}
+                        {formatVND(selectedCapture.referencePrice)}
                       </p>
                       <p className="mt-1 text-[10px] text-muted-foreground">Internal rate</p>
                     </div>
@@ -883,7 +883,7 @@ export default function PriceMonitorPage() {
                         {selectedCapture.deltaPercent > 0 ? '+' : ''}{selectedCapture.deltaPercent.toFixed(1)}%
                       </p>
                       <p className="mt-1 text-[10px] text-muted-foreground">
-                        {selectedCapture.delta > 0 ? '+' : ''}{selectedCapture.currency} {selectedCapture.delta.toLocaleString()}
+                        {selectedCapture.delta > 0 ? '+' : ''}{formatVND(Math.abs(selectedCapture.delta))}
                       </p>
                     </div>
                   </div>
@@ -905,7 +905,7 @@ export default function PriceMonitorPage() {
                         <div className="text-right">
                           <p className="text-[10px] text-muted-foreground">Est. Payout Impact</p>
                           <p className="text-[12px] font-medium text-foreground">
-                            {selectedCapture.currency} {Math.round(selectedCapture.displayPrice * (1 - (selectedCapture.commissionAssumption || 15) / 100)).toLocaleString()}
+                            {formatVND(Math.round(selectedCapture.displayPrice * (1 - (selectedCapture.commissionAssumption || 15) / 100)))}
                           </p>
                         </div>
                       </div>
@@ -1041,7 +1041,7 @@ export default function PriceMonitorPage() {
                           </div>
                           <div className="text-right">
                             <p className="text-[12px] font-bold tabular-nums text-foreground">
-                              {rc.currency} {rc.displayPrice.toLocaleString()}
+                              {formatVND(rc.displayPrice)}
                             </p>
                             <p className={cn(
                               'text-[10px] font-semibold tabular-nums',

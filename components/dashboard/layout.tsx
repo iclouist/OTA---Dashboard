@@ -17,6 +17,7 @@ import {
   CalendarCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/dashboard/theme-toggle';
 
 const navigation = [
   { name: 'Overview', href: '/', icon: LayoutDashboard },
@@ -122,7 +123,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               {activeNavItem?.name || (pathname === '/settings' ? 'Settings' : 'Dashboard')}
             </span>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Button variant="ghost" size="sm" className="relative h-7 w-7 p-0">
               <Bell className="h-4 w-4 text-muted-foreground" />
               <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-critical text-[9px] font-medium text-critical-foreground">

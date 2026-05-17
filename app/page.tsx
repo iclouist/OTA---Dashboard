@@ -34,13 +34,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-import { cn } from '@/lib/utils';
-
-function formatCurrency(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K`;
-  return value.toFixed(0);
-}
+import { cn, formatVND } from '@/lib/utils';
 
 export default function OverviewPage() {
   const activeAlerts = alerts.filter((a) => a.status === 'active');
@@ -171,9 +165,9 @@ export default function OverviewPage() {
                 <span className="text-[11px] font-medium uppercase tracking-wide">Gross Booking Value</span>
               </div>
               <p className="mt-3 text-4xl font-bold tabular-nums tracking-tight text-foreground">
-                {formatCurrency(overviewKPIs.grossBookingValue)}
+                {formatVND(overviewKPIs.grossBookingValue, true)}
               </p>
-              <p className="mt-1 text-[11px] text-muted-foreground">THB equivalent</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">VND equivalent</p>
             </div>
 
             {/* Secondary KPIs - more compact but still readable */}
@@ -191,7 +185,7 @@ export default function OverviewPage() {
                 <Percent className="h-3.5 w-3.5" />
                 <span className="text-[10px] font-medium uppercase tracking-wide">OTA Commission</span>
               </div>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-warning">{formatCurrency(overviewKPIs.estimatedOTACommission)}</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-warning">{formatVND(overviewKPIs.estimatedOTACommission, true)}</p>
               <p className="mt-0.5 text-[10px] text-muted-foreground">~15% average rate</p>
             </div>
 
@@ -200,7 +194,7 @@ export default function OverviewPage() {
                 <TrendingUp className="h-3.5 w-3.5" />
                 <span className="text-[10px] font-medium uppercase tracking-wide">Net Revenue</span>
               </div>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-success">{formatCurrency(overviewKPIs.netRevenue)}</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-success">{formatVND(overviewKPIs.netRevenue, true)}</p>
               <p className="mt-0.5 text-[10px] text-muted-foreground">After commission</p>
             </div>
 
@@ -715,7 +709,7 @@ export default function OverviewPage() {
                         </div>
                         <div className="text-right">
                           <p className="text-[12px] font-bold tabular-nums text-foreground">
-                            {property.currency} {property.grossRevenue.toLocaleString()}
+                            {formatVND(property.grossRevenue, true)}
                           </p>
                           <p className="text-[10px] tabular-nums text-muted-foreground">{property.roomNightsSold} nights</p>
                         </div>
@@ -739,7 +733,7 @@ export default function OverviewPage() {
                         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">{idx + 1}</span>
                         <span className="text-[12px] font-medium text-foreground">{channel}</span>
                       </div>
-                      <span className="text-[12px] font-bold tabular-nums text-foreground">{formatCurrency(amount)}</span>
+                      <span className="text-[12px] font-bold tabular-nums text-foreground">{formatVND(amount, true)}</span>
                     </div>
                   ))}
                 </div>
@@ -781,7 +775,7 @@ export default function OverviewPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-[12px] font-bold tabular-nums text-foreground">
-                          {b.currency} {b.grossAmount.toLocaleString()}
+                          {formatVND(b.grossAmount)}
                         </p>
                         <p className="text-[9px] tabular-nums text-muted-foreground">
                           {formatDistanceToNow(new Date(b.eventTime), { addSuffix: false })}

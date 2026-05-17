@@ -12,6 +12,7 @@ import { properties } from '@/lib/mock-data';
 import type { Property } from '@/lib/types';
 import { Download, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { formatVND } from '@/lib/utils';
 
 const filterConfig: FilterConfig[] = [
   { id: 'search', label: 'Search', type: 'search', placeholder: 'Search properties...' },
@@ -90,7 +91,7 @@ const columns: Column<Property>[] = [
     accessorKey: 'grossRevenue',
     cell: (row) => (
       <span className="tabular-nums font-medium text-foreground">
-        {row.currency} {row.grossRevenue.toLocaleString()}
+        {formatVND(row.grossRevenue, true)}
       </span>
     ),
     className: 'text-right',
@@ -101,7 +102,7 @@ const columns: Column<Property>[] = [
     width: '100px',
     cell: (row) => (
       <span className="tabular-nums text-muted-foreground">
-        {row.currency} {row.otaCommission.toLocaleString()}
+        {formatVND(row.otaCommission, true)}
       </span>
     ),
     className: 'text-right',
@@ -114,7 +115,7 @@ const columns: Column<Property>[] = [
     accessorKey: 'netRevenue',
     cell: (row) => (
       <span className="tabular-nums font-medium text-success">
-        {row.currency} {row.netRevenue.toLocaleString()}
+        {formatVND(row.netRevenue, true)}
       </span>
     ),
     className: 'text-right',

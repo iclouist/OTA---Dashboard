@@ -50,7 +50,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/lib/utils';
+import { cn, formatVND } from '@/lib/utils';
 import { notFound } from 'next/navigation';
 
 interface PropertyDetailPageProps {
@@ -125,7 +125,7 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
                 <MapPin className="h-3 w-3" />
                 <span>{property.location}</span>
                 <span className="text-border">·</span>
-                <span>{property.currency}</span>
+                <span>VND</span>
                 <span className="text-border">·</span>
                 <span>{property.activeOTAChannels.length} OTA channels</span>
               </div>
@@ -148,9 +148,9 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
           <TabsContent value="summary" className="space-y-4">
             <div className="grid grid-cols-3 gap-3 md:grid-cols-6">
               <KPICard title="Room Nights" value={property.roomNightsSold} icon={BedDouble} />
-              <KPICard title="Gross Revenue" value={`${property.currency} ${property.grossRevenue.toLocaleString()}`} icon={Banknote} />
-              <KPICard title="OTA Commission" value={`${property.currency} ${property.otaCommission.toLocaleString()}`} icon={Percent} status="warning" />
-              <KPICard title="Net Revenue" value={`${property.currency} ${property.netRevenue.toLocaleString()}`} icon={TrendingUp} status="success" />
+              <KPICard title="Gross Revenue" value={formatVND(property.grossRevenue, true)} icon={Banknote} />
+              <KPICard title="OTA Commission" value={formatVND(property.otaCommission, true)} icon={Percent} status="warning" />
+              <KPICard title="Net Revenue" value={formatVND(property.netRevenue, true)} icon={TrendingUp} status="success" />
               <KPICard title="Price Issues" value={property.activePriceIssues} icon={AlertTriangle} status={property.activePriceIssues > 0 ? 'warning' : 'success'} />
               <KPICard title="Mapping" value={property.mappingCompleteness} icon={ShieldCheck} />
             </div>
@@ -540,10 +540,10 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
                             {format(new Date(pc.stayDate), 'MMM d')}
                           </td>
                           <td className="px-3 py-2 text-right text-[11px] font-medium tabular-nums text-foreground">
-                            {pc.currency} {pc.displayPrice.toLocaleString()}
+                            {formatVND(pc.displayPrice)}
                           </td>
                           <td className="px-3 py-2 text-right text-[11px] tabular-nums text-muted-foreground">
-                            {pc.currency} {pc.referencePrice.toLocaleString()}
+                            {formatVND(pc.referencePrice)}
                           </td>
                           <td className={cn(
                             'px-3 py-2 text-right text-[11px] font-medium tabular-nums',
@@ -601,13 +601,13 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
                           </td>
                           <td className="px-3 py-2 text-right text-[11px] font-medium tabular-nums text-foreground">{b.roomNights}</td>
                           <td className="px-3 py-2 text-right text-[11px] font-medium tabular-nums text-foreground">
-                            {b.currency} {b.grossAmount.toLocaleString()}
+                            {formatVND(b.grossAmount)}
                           </td>
                           <td className="px-3 py-2 text-right text-[11px] tabular-nums text-muted-foreground">
-                            {b.commissionAmount > 0 ? `${b.currency} ${b.commissionAmount.toLocaleString()}` : '-'}
+                            {b.commissionAmount > 0 ? formatVND(b.commissionAmount) : '-'}
                           </td>
                           <td className="px-3 py-2 text-right text-[11px] font-medium tabular-nums text-success">
-                            {b.netAmount > 0 ? `${b.currency} ${b.netAmount.toLocaleString()}` : '-'}
+                            {b.netAmount > 0 ? formatVND(b.netAmount) : '-'}
                           </td>
                           <td className="px-3 py-2 text-center">
                             <StatusBadge status={b.sourceType} size="xs" />

@@ -9,7 +9,7 @@ import { InlineKPI } from '@/components/dashboard/kpi-card';
 import { bookingEvents, properties } from '@/lib/mock-data';
 import type { BookingEvent } from '@/lib/types';
 import { format, formatDistanceToNow } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, formatVND } from '@/lib/utils';
 import { Download, BedDouble, Banknote, Percent, TrendingUp, AlertTriangle, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -100,9 +100,9 @@ export default function BookingsPage() {
           <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
             <KPICard title="Events" value={stats.total} icon={Receipt} />
             <KPICard title="Room Nights" value={stats.totalNights} icon={BedDouble} />
-            <KPICard title="Gross Value" value={`${(stats.totalGross / 1000).toFixed(0)}K`} icon={Banknote} />
-            <KPICard title="Commission" value={`${(stats.totalCommission / 1000).toFixed(1)}K`} icon={Percent} status="warning" />
-            <KPICard title="Net Revenue" value={`${(stats.totalNet / 1000).toFixed(0)}K`} icon={TrendingUp} status="success" />
+            <KPICard title="Gross Value" value={formatVND(stats.totalGross, true)} icon={Banknote} />
+            <KPICard title="Commission" value={formatVND(stats.totalCommission, true)} icon={Percent} status="warning" />
+            <KPICard title="Net Revenue" value={formatVND(stats.totalNet, true)} icon={TrendingUp} status="success" />
             <KPICard title="Pending Verify" value={stats.pendingVerification} icon={AlertTriangle} status={stats.pendingVerification > 0 ? 'warning' : 'success'} />
           </div>
         </div>
@@ -165,13 +165,13 @@ export default function BookingsPage() {
                       </td>
                       <td className="px-2 py-1.5 text-[11px] font-medium tabular-nums text-foreground">{b.roomNights}</td>
                       <td className="px-2 py-1.5 text-[11px] font-medium tabular-nums text-foreground">
-                        {b.currency} {b.grossAmount.toLocaleString()}
+                        {formatVND(b.grossAmount)}
                       </td>
                       <td className="px-2 py-1.5 text-[11px] tabular-nums text-muted-foreground">
-                        {b.commissionAmount > 0 ? `${b.currency} ${b.commissionAmount.toLocaleString()}` : '-'}
+                        {b.commissionAmount > 0 ? formatVND(b.commissionAmount) : '-'}
                       </td>
                       <td className="px-2 py-1.5 text-[11px] font-medium tabular-nums text-success">
-                        {b.netAmount > 0 ? `${b.currency} ${b.netAmount.toLocaleString()}` : '-'}
+                        {b.netAmount > 0 ? formatVND(b.netAmount) : '-'}
                       </td>
                       <td className="px-2 py-1.5 pr-3">
                         <StatusBadge status={b.verificationStatus} size="xs" />
@@ -229,19 +229,19 @@ export default function BookingsPage() {
                   <div className="rounded bg-muted/30 p-2">
                     <p className="text-[9px] text-muted-foreground">Gross</p>
                     <p className="text-[13px] font-semibold tabular-nums text-foreground">
-                      {selectedBooking.currency} {selectedBooking.grossAmount.toLocaleString()}
+                      {formatVND(selectedBooking.grossAmount)}
                     </p>
                   </div>
                   <div className="rounded bg-muted/30 p-2">
                     <p className="text-[9px] text-muted-foreground">Commission</p>
                     <p className="text-[13px] font-semibold tabular-nums text-warning">
-                      {selectedBooking.commissionAmount > 0 ? `${selectedBooking.currency} ${selectedBooking.commissionAmount.toLocaleString()}` : '-'}
+                      {selectedBooking.commissionAmount > 0 ? formatVND(selectedBooking.commissionAmount) : '-'}
                     </p>
                   </div>
                   <div className="rounded bg-muted/30 p-2">
                     <p className="text-[9px] text-muted-foreground">Net</p>
                     <p className="text-[13px] font-semibold tabular-nums text-success">
-                      {selectedBooking.netAmount > 0 ? `${selectedBooking.currency} ${selectedBooking.netAmount.toLocaleString()}` : '-'}
+                      {selectedBooking.netAmount > 0 ? formatVND(selectedBooking.netAmount) : '-'}
                     </p>
                   </div>
                 </div>

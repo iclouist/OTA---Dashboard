@@ -31,6 +31,9 @@ import {
   ArrowLeftRight,
   AlertTriangle,
   Clock3,
+  SlidersHorizontal,
+  Wand2,
+  Check,
 } from 'lucide-react';
 
 type EditableAvailabilityCell = {
@@ -49,11 +52,22 @@ const channelTone: Record<string, string> = {
 export default function OverviewPage() {
   const activeProperties = properties.filter((property) => property.onboardingStatus !== 'draft');
   const [selectedPropertyId, setSelectedPropertyId] = React.useState(activeProperties[0]?.id ?? properties[0]?.id ?? '');
+  const [selectedRoomFilter, setSelectedRoomFilter] = React.useState('all');
+  const [selectedChannelFilter, setSelectedChannelFilter] = React.useState('all');
+  const [bulkInventory, setBulkInventory] = React.useState('');
+  const [bulkPrice, setBulkPrice] = React.useState('');
+  const [bulkStatus, setBulkStatus] = React.useState<AvailabilityStatus | 'keep'>('keep');
+  const [bulkRestriction, setBulkRestriction] = React.useState<RestrictionType | 'keep'>('keep');
 
   const selectedProperty = React.useMemo(
     () => properties.find((property) => property.id === selectedPropertyId) ?? properties[0],
     [selectedPropertyId]
   );
+
+  React.useEffect(() => {
+    setSelectedRoomFilter('all');
+    setSelectedChannelFilter('all');
+  }, [selectedPropertyId]);
 
   const propertyBookings = React.useMemo(
     () => bookingEvents.filter((booking) => booking.propertyId === selectedProperty?.id),
@@ -73,6 +87,21 @@ export default function OverviewPage() {
   const propertyAvailability = React.useMemo(
     () => availabilitySnapshots.filter((snapshot) => snapshot.propertyId === selectedProperty?.id),
     [selectedProperty]
+  );
+
+  const roomOptions = React.useMemo(
+    () => Array.from(new Set(propertyAvailability.map((snapshot) => snapshot.roomType))).sort(),
+    [propertyAvailability]
+  );
+
+  const channelOptions = React.useMemo(
+    () => Array.from(new Set(propertyAvailability.map((snapshot) => `${snapshot.channelId}|||${snapshot.channelName}`)))
+      .map((value) => {
+        const [channelId, channelName] = value.split('|||');
+        return { channelId, channelName };
+      })
+      .sort((a, b) => a.channelName.localeCompare(b.channelName)),
+    [propertyAvailability]
   );
 
   const calendarDates = React.useMemo(
@@ -119,13 +148,22 @@ export default function OverviewPage() {
           snapshots: orderedSnapshots,
         };
       })
+      .filter((row) => (selectedRoomFilter === 'all' || row.roomType === selectedRoomFilter) && (selectedChannelFilter === 'all' || row.channelId === selectedChannelFilter))
       .sort((a, b) => a.roomType.localeCompare(b.roomType) || a.channelName.localeCompare(b.channelName));
-  }, [propertyAvailability]);
+  }, [propertyAvailability, selectedRoomFilter, selectedChannelFilter]);
+
+  const visibleSnapshotIds = React.useMemo(
+    () => groupedCalendarRows.flatMap((row) => row.snapshots.map((snapshot) => snapshot.id)),
+    [groupedCalendarRows]
+  );
 
   const priceMappingRows = React.useMemo(() => {
     const groups = new Map<string, { roomType: string; channelId: string; channelName: string; stayDate: string; desktop?: number; mobile?: number; referencePrice: number; }>();
 
     propertyCaptures.forEach((capture) => {
+      if (selectedRoomFilter !== 'all' && capture.roomType !== selectedRoomFilter) return;
+      if (selectedChannelFilter !== 'all' && capture.channelId !== selectedChannelFilter) return;
+
       const key = `${capture.roomType}|||${capture.channelId}|||${capture.stayDate}`;
       if (!groups.has(key)) {
         groups.set(key, {
@@ -152,7 +190,7 @@ export default function OverviewPage() {
         const bSeverity = Math.abs(b.deltaPercent ?? 0);
         return bSeverity - aSeverity;
       });
-  }, [propertyCaptures]);
+  }, [propertyCaptures, selectedRoomFilter, selectedChannelFilter]);
 
   const revenueByRoom = React.useMemo(() => {
     const grouped = new Map<string, { roomType: string; bookings: number; grossAmount: number; roomNights: number }>();
@@ -207,6 +245,30 @@ export default function OverviewPage() {
         [field]: field === 'inventoryCount' || field === 'price' ? Number(value) : value,
       },
     }));
+  };
+
+  const applyBulkChanges = () => {
+    if (visibleSnapshotIds.length === 0) return;
+    setCalendarState((prev) => {
+      const next = { ...prev };
+      visibleSnapshotIds.forEach((snapshotId) => {
+        next[snapshotId] = {
+          ...next[snapshotId],
+          ...(bulkInventory !== '' ? { inventoryCount: Number(bulkInventory) } : {}),
+          ...(bulkPrice !== '' ? { price: Number(bulkPrice) } : {}),
+          ...(bulkStatus !== 'keep' ? { availabilityStatus: bulkStatus } : {}),
+          ...(bulkRestriction !== 'keep' ? { restrictionType: bulkRestriction } : {}),
+        };
+      });
+      return next;
+    });
+  };
+
+  const resetBulkInputs = () => {
+    setBulkInventory('');
+    setBulkPrice('');
+    setBulkStatus('keep');
+    setBulkRestriction('keep');
   };
 
   if (!selectedProperty || !propertyKpis) {
@@ -420,14 +482,110 @@ export default function OverviewPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card shadow-sm">
-            <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
               <div className="flex items-center gap-2">
                 <CalendarCheck className="h-4 w-4 text-info" />
                 <span className="text-[13px] font-semibold text-foreground">{selectedProperty.name}</span>
                 <StatusBadge status={selectedProperty.healthStatus} size="xs" />
               </div>
-              <span className="text-[11px] text-muted-foreground">{calendarDates.length} live dates</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5">
+                  <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                  <select
+                    value={selectedRoomFilter}
+                    onChange={(event) => setSelectedRoomFilter(event.target.value)}
+                    className="bg-transparent text-[11px] text-foreground outline-none"
+                  >
+                    <option value="all">All rooms</option>
+                    {roomOptions.map((room) => (
+                      <option key={room} value={room}>{room}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5">
+                  <select
+                    value={selectedChannelFilter}
+                    onChange={(event) => setSelectedChannelFilter(event.target.value)}
+                    className="bg-transparent text-[11px] text-foreground outline-none"
+                  >
+                    <option value="all">All channels</option>
+                    {channelOptions.map((channel) => (
+                      <option key={channel.channelId} value={channel.channelId}>{channel.channelName}</option>
+                    ))}
+                  </select>
+                </div>
+                <span className="text-[11px] text-muted-foreground">{groupedCalendarRows.length} row(s) · {calendarDates.length} dates</span>
+              </div>
+            </div>
+
+            <div className="border-b border-border bg-muted/15 px-5 py-3">
+              <div className="flex flex-wrap items-end gap-3">
+                <div>
+                  <label className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Bulk Inventory</label>
+                  <input
+                    type="number"
+                    value={bulkInventory}
+                    onChange={(event) => setBulkInventory(event.target.value)}
+                    placeholder="Keep"
+                    className="mt-1 h-8 w-[120px] rounded border border-border bg-background px-2 text-[11px] text-foreground outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Bulk Rate</label>
+                  <input
+                    type="number"
+                    value={bulkPrice}
+                    onChange={(event) => setBulkPrice(event.target.value)}
+                    placeholder="Keep"
+                    className="mt-1 h-8 w-[120px] rounded border border-border bg-background px-2 text-[11px] text-foreground outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Bulk Status</label>
+                  <select
+                    value={bulkStatus}
+                    onChange={(event) => setBulkStatus(event.target.value as AvailabilityStatus | 'keep')}
+                    className="mt-1 h-8 w-[140px] rounded border border-border bg-background px-2 text-[11px] text-foreground outline-none"
+                  >
+                    <option value="keep">Keep current</option>
+                    <option value="open">Open</option>
+                    <option value="low-inventory">Low inventory</option>
+                    <option value="closed">Closed</option>
+                    <option value="sold-out">Sold out</option>
+                    <option value="restricted">Restricted</option>
+                    <option value="unknown">Unknown</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Bulk Restriction</label>
+                  <select
+                    value={bulkRestriction}
+                    onChange={(event) => setBulkRestriction(event.target.value as RestrictionType | 'keep')}
+                    className="mt-1 h-8 w-[150px] rounded border border-border bg-background px-2 text-[11px] text-foreground outline-none"
+                  >
+                    <option value="keep">Keep current</option>
+                    <option value="none">None</option>
+                    <option value="min-los">Min LOS</option>
+                    <option value="max-los">Max LOS</option>
+                    <option value="cta">CTA</option>
+                    <option value="ctd">CTD</option>
+                    <option value="advance-booking">Advance booking</option>
+                    <option value="closed-to-arrival">Closed to arrival</option>
+                    <option value="closed-to-departure">Closed to departure</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 pb-0.5">
+                  <Button onClick={applyBulkChanges} size="sm" className="h-8 gap-1.5 text-[11px]">
+                    <Wand2 className="h-3.5 w-3.5" />
+                    Apply to visible rows
+                  </Button>
+                  <Button onClick={resetBulkInputs} variant="outline" size="sm" className="h-8 gap-1.5 text-[11px]">
+                    <Check className="h-3.5 w-3.5" />
+                    Reset bulk
+                  </Button>
+                </div>
+              </div>
             </div>
 
             <div className="overflow-x-auto">

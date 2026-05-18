@@ -60,16 +60,40 @@ export type PayoutModel = 'collect-and-remit' | 'pay-at-property' | 'virtual-car
 
 // --- Core Entities ---
 
+export type PropertyRoomStatus = 'active' | 'inactive' | 'draft';
+
+export interface PropertyRoomInventory {
+  id: string;
+  name: string;
+  quantity: number;
+  sellingPrice: number;
+  beds: number;
+  capacity: number;
+  roomCode?: string;
+  notes?: string;
+  status?: PropertyRoomStatus;
+}
+
+export interface PropertyRoomSummary {
+  roomTypeCount: number;
+  totalInventory: number;
+  minPrice: number;
+  maxPrice: number;
+  avgCapacity: number;
+  totalSleeps: number;
+}
+
 export interface Property {
   id: string;
   name: string;
   location: string;
   timezone: string;
   currency: string;
-  roomType?: string;
-  roomCount?: number;
-  bedsPerRoom?: number;
-  capacityPerRoom?: number;
+  /**
+   * First-class room inventory. A property can have multiple room types, each
+   * with their own quantity, selling price, beds and capacity.
+   */
+  rooms: PropertyRoomInventory[];
   activeOTAChannels: string[];
   roomNightsSold: number;
   grossRevenue: number;

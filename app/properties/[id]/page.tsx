@@ -52,7 +52,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn, formatVND } from '@/lib/utils';
+import { cn, computeRoomSummary, formatVND } from '@/lib/utils';
 import { notFound } from 'next/navigation';
 import {
   AlertDialog,
@@ -169,34 +169,91 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
 
           {/* Summary Tab */}
           <TabsContent value="summary" className="space-y-4">
-            {/* Room Specs Metadata Bar */}
-            <div className="rounded-lg border border-border bg-card p-3 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded bg-muted/60">
-                  <BedDouble className="h-4 w-4 text-muted-foreground" />
+            {/* Inventory Rooms Block */}
+            {(() => {
+              const rooms = property.rooms ?? [];
+              const summary = computeRoomSummary(rooms);
+              const priceLabel =
+                summary.roomTypeCount === 0
+                  ? '—'
+                  : summary.minPrice === summary.maxPrice
+                  ? `${summary.maxPrice.toLocaleString()} ${property.currency}`
+                  : `${summary.minPrice.toLocaleString()}–${summary.maxPrice.toLocaleString()} ${property.currency}`;
+              return (
+                <div className="rounded-lg border border-border bg-card">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <BedDouble className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-[12px] font-medium text-foreground">Inventory Rooms</span>
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-medium text-foreground">
+                        {summary.roomTypeCount} type{summary.roomTypeCount === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-5 text-right">
+                      <div>
+                        <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider">Total Inventory</p>
+                        <p className="text-[12px] font-semibold tabular-nums text-foreground">{summary.totalInventory} rooms</p>
+                      </div>
+                      <div className="h-6 w-px bg-border" />
+                      <div>
+                        <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider">Price Range</p>
+                        <p className="text-[12px] font-semibold tabular-nums text-foreground">{priceLabel}</p>
+                      </div>
+                      <div className="h-6 w-px bg-border" />
+                      <div>
+                        <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider">Avg Capacity</p>
+                        <p className="text-[12px] font-semibold tabular-nums text-foreground">{summary.avgCapacity} pax</p>
+                      </div>
+                      <div className="h-6 w-px bg-border" />
+                      <div>
+                        <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider">Sleeps</p>
+                        <p className="text-[12px] font-semibold tabular-nums text-foreground">{summary.totalSleeps}</p>
+                      </div>
+                    </div>
+                  </div>
+                  {rooms.length === 0 ? (
+                    <div className="px-3 py-6 text-center text-[11px] text-muted-foreground">
+                      No room inventory configured. Add rooms to make this property sellable.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-border bg-muted/30">
+                            <th className="px-3 py-2 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Room Name</th>
+                            <th className="px-2 py-2 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Code</th>
+                            <th className="px-2 py-2 text-right text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Quantity</th>
+                            <th className="px-2 py-2 text-right text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Selling Price</th>
+                            <th className="px-2 py-2 text-right text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Beds</th>
+                            <th className="px-2 py-2 text-right text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Capacity</th>
+                            <th className="px-2 py-2 text-right text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Sleeps</th>
+                            <th className="px-2 py-2 text-left text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/50">
+                          {rooms.map((room) => (
+                            <tr key={room.id} className="hover:bg-muted/30">
+                              <td className="px-3 py-2 text-[11px] font-medium text-foreground">{room.name}</td>
+                              <td className="px-2 py-2 text-[10px] font-mono text-muted-foreground">{room.roomCode || '—'}</td>
+                              <td className="px-2 py-2 text-right text-[11px] tabular-nums text-foreground">{room.quantity}</td>
+                              <td className="px-2 py-2 text-right text-[11px] tabular-nums text-foreground">
+                                {room.sellingPrice.toLocaleString()} <span className="text-[9px] text-muted-foreground">{property.currency}</span>
+                              </td>
+                              <td className="px-2 py-2 text-right text-[11px] tabular-nums text-muted-foreground">{room.beds}</td>
+                              <td className="px-2 py-2 text-right text-[11px] tabular-nums text-muted-foreground">{room.capacity}</td>
+                              <td className="px-2 py-2 text-right text-[11px] tabular-nums text-muted-foreground">{room.quantity * room.capacity}</td>
+                              <td className="px-2 py-2">
+                                <StatusBadge status={room.status || 'active'} size="xs" />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Primary Room Specification</p>
-                  <p className="text-[12px] font-semibold text-foreground">{property.roomType || 'Deluxe Room (Default)'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-6">
-                <div className="text-right">
-                  <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider">Inventory</p>
-                  <p className="text-[12px] font-semibold text-foreground">{property.roomCount || 10} rooms</p>
-                </div>
-                <div className="h-6 w-px bg-border" />
-                <div className="text-right">
-                  <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider">Beds / Room</p>
-                  <p className="text-[12px] font-semibold text-foreground">{property.bedsPerRoom || 2} Beds</p>
-                </div>
-                <div className="h-6 w-px bg-border" />
-                <div className="text-right">
-                  <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider">Capacity</p>
-                  <p className="text-[12px] font-semibold text-foreground">{property.capacityPerRoom || 2} Pax</p>
-                </div>
-              </div>
-            </div>
+              );
+            })()}
 
             <div className="grid grid-cols-3 gap-3 md:grid-cols-6">
               <KPICard title="Room Nights" value={property.roomNightsSold} icon={BedDouble} />

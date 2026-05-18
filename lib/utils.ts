@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import type { PropertyRoomInventory, PropertyRoomSummary } from './types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -69,4 +70,67 @@ export function getRollingDates(days: number = 14): Array<{
       isToday: i === 0,
     };
   });
+}
+
+/**
+ * Compute summary metrics from a property's room inventory.
+ */
+export function computeRoomSummary(rooms: PropertyRoomInventory[] | undefined): PropertyRoomSummary {
+  const list = rooms ?? [];
+  const validRooms = list.filter((r) => r.quantity > 0);
+  const totalInventory = validRooms.reduce((s, r) => s + (r.quantity || 0), 0);
+  const totalSleeps = validRooms.reduce((s, r) => s + (r.quantity || 0) * (r.capacity || 0), 0);
+  const prices = validRooms.map((r) => r.sellingPrice).filter((p) => p > 0);
+  const minPrice = prices.length ? Math.min(...prices) : 0;
+  const maxPrice = prices.length ? Math.max(...prices) : 0;
+  const avgCapacity = totalInventory > 0 ? Number((totalSleeps / totalInventory).toFixed(1)) : 0;
+  return {
+    roomTypeCount: list.length,
+    totalInventory,
+    minPrice,
+    maxPrice,
+    avgCapacity,
+    totalSleeps,
+  };
+}
+
+export interface RoomRowValidation {
+  hasErrors: boolean;
+  errors: { rowIndex: number; field: string; message: string }[];
+  warnings: string[];
+}
+
+/**
+ * Validate the room inventory rows entered in Add Property / Edit Property.
+ */
+export function validateRoomInventory(rooms: Pick<PropertyRoomInventory, 'name' | 'quantity' | 'sellingPrice' | 'beds' | 'capacity'>[]): RoomRowValidation {
+  const errors: RoomRowValidation['errors'] = [];
+  const warnings: string[] = [];
+
+  rooms.forEach((r, i) => {
+    if (!r.name || !r.name.trim()) {
+      errors.push({ rowIndex: i, field: 'name', message: 'Room name is required' });
+    }
+    if (!r.quantity || r.quantity < 1) {
+      errors.push({ rowIndex: i, field: 'quantity', message: 'Quantity must be at least 1' });
+    }
+    if (r.sellingPrice == null || r.sellingPrice < 0) {
+      errors.push({ rowIndex: i, field: 'sellingPrice', message: 'Selling price must be 0 or higher' });
+    }
+    if (!r.beds || r.beds < 1) {
+      errors.push({ rowIndex: i, field: 'beds', message: 'Beds must be at least 1' });
+    }
+    if (!r.capacity || r.capacity < 1) {
+      errors.push({ rowIndex: i, field: 'capacity', message: 'Capacity must be at least 1' });
+    }
+  });
+
+  if (rooms.length === 0) warnings.push('No room types defined — property will have zero sellable inventory');
+  const names = rooms.map((r) => (r.name || '').trim().toLowerCase()).filter(Boolean);
+  const dupes = names.filter((n, i) => names.indexOf(n) !== i);
+  if (dupes.length) warnings.push(`Duplicate room name: ${[...new Set(dupes)].join(', ')}`);
+  const zeroPriced = rooms.filter((r) => (r.sellingPrice ?? 0) === 0).length;
+  if (zeroPriced > 0) warnings.push(`${zeroPriced} room type(s) have a selling price of 0`);
+
+  return { hasErrors: errors.length > 0, errors, warnings };
 }

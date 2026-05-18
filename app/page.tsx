@@ -34,6 +34,8 @@ import {
   SlidersHorizontal,
   Wand2,
   Check,
+  Save,
+  RotateCcw,
 } from 'lucide-react';
 
 type EditableAvailabilityCell = {
@@ -49,6 +51,15 @@ const channelTone: Record<string, string> = {
   airbnb: 'bg-warning/10 text-warning',
 };
 
+const cellToneByStatus: Record<AvailabilityStatus, string> = {
+  open: 'border-success/30 bg-success/5',
+  'low-inventory': 'border-warning/30 bg-warning/5',
+  closed: 'border-critical/30 bg-critical/5',
+  'sold-out': 'border-critical/40 bg-critical/10',
+  restricted: 'border-info/30 bg-info/5',
+  unknown: 'border-border/60 bg-background',
+};
+
 export default function OverviewPage() {
   const activeProperties = properties.filter((property) => property.onboardingStatus !== 'draft');
   const [selectedPropertyId, setSelectedPropertyId] = React.useState(activeProperties[0]?.id ?? properties[0]?.id ?? '');
@@ -58,6 +69,10 @@ export default function OverviewPage() {
   const [bulkPrice, setBulkPrice] = React.useState('');
   const [bulkStatus, setBulkStatus] = React.useState<AvailabilityStatus | 'keep'>('keep');
   const [bulkRestriction, setBulkRestriction] = React.useState<RestrictionType | 'keep'>('keep');
+  const [bulkDateFrom, setBulkDateFrom] = React.useState('');
+  const [bulkDateTo, setBulkDateTo] = React.useState('');
+  const [isDirty, setIsDirty] = React.useState(false);
+  const [savedAt, setSavedAt] = React.useState<string | null>(null);
 
   const selectedProperty = React.useMemo(
     () => properties.find((property) => property.id === selectedPropertyId) ?? properties[0],
@@ -109,6 +124,11 @@ export default function OverviewPage() {
     [propertyAvailability]
   );
 
+  React.useEffect(() => {
+    setBulkDateFrom((prev) => prev || calendarDates[0] || '');
+    setBulkDateTo((prev) => prev || calendarDates[calendarDates.length - 1] || '');
+  }, [calendarDates]);
+
   const calendarSeed = React.useMemo(() => {
     const seed: Record<string, EditableAvailabilityCell> = {};
     propertyAvailability.forEach((snapshot) => {
@@ -127,6 +147,7 @@ export default function OverviewPage() {
 
   React.useEffect(() => {
     setCalendarState(calendarSeed);
+    setIsDirty(false);
   }, [calendarSeed]);
 
   const groupedCalendarRows = React.useMemo(() => {
@@ -152,10 +173,15 @@ export default function OverviewPage() {
       .sort((a, b) => a.roomType.localeCompare(b.roomType) || a.channelName.localeCompare(b.channelName));
   }, [propertyAvailability, selectedRoomFilter, selectedChannelFilter]);
 
-  const visibleSnapshotIds = React.useMemo(
-    () => groupedCalendarRows.flatMap((row) => row.snapshots.map((snapshot) => snapshot.id)),
-    [groupedCalendarRows]
-  );
+  const visibleSnapshotIds = React.useMemo(() => {
+    const from = bulkDateFrom || calendarDates[0];
+    const to = bulkDateTo || calendarDates[calendarDates.length - 1];
+    return groupedCalendarRows.flatMap((row) =>
+      row.snapshots
+        .filter((snapshot) => (!from || snapshot.date >= from) && (!to || snapshot.date <= to))
+        .map((snapshot) => snapshot.id)
+    );
+  }, [groupedCalendarRows, bulkDateFrom, bulkDateTo, calendarDates]);
 
   const priceMappingRows = React.useMemo(() => {
     const groups = new Map<string, { roomType: string; channelId: string; channelName: string; stayDate: string; desktop?: number; mobile?: number; referencePrice: number; }>();
@@ -245,6 +271,7 @@ export default function OverviewPage() {
         [field]: field === 'inventoryCount' || field === 'price' ? Number(value) : value,
       },
     }));
+    setIsDirty(true);
   };
 
   const applyBulkChanges = () => {
@@ -262,6 +289,7 @@ export default function OverviewPage() {
       });
       return next;
     });
+    setIsDirty(true);
   };
 
   const resetBulkInputs = () => {
@@ -269,6 +297,18 @@ export default function OverviewPage() {
     setBulkPrice('');
     setBulkStatus('keep');
     setBulkRestriction('keep');
+    setBulkDateFrom(calendarDates[0] || '');
+    setBulkDateTo(calendarDates[calendarDates.length - 1] || '');
+  };
+
+  const saveCalendarChanges = () => {
+    setSavedAt(new Date().toISOString());
+    setIsDirty(false);
+  };
+
+  const discardCalendarChanges = () => {
+    setCalendarState(calendarSeed);
+    setIsDirty(false);
   };
 
   if (!selectedProperty || !propertyKpis) {
@@ -519,8 +559,26 @@ export default function OverviewPage() {
               </div>
             </div>
 
-            <div className="border-b border-border bg-muted/15 px-5 py-3">
+            <div className="border-b border-border bg-muted/15 px-5 py-3 space-y-3">
               <div className="flex flex-wrap items-end gap-3">
+                <div>
+                  <label className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Date from</label>
+                  <input
+                    type="date"
+                    value={bulkDateFrom}
+                    onChange={(event) => setBulkDateFrom(event.target.value)}
+                    className="mt-1 h-8 w-[150px] rounded border border-border bg-background px-2 text-[11px] text-foreground outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Date to</label>
+                  <input
+                    type="date"
+                    value={bulkDateTo}
+                    onChange={(event) => setBulkDateTo(event.target.value)}
+                    className="mt-1 h-8 w-[150px] rounded border border-border bg-background px-2 text-[11px] text-foreground outline-none"
+                  />
+                </div>
                 <div>
                   <label className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Bulk Inventory</label>
                   <input
@@ -575,15 +633,31 @@ export default function OverviewPage() {
                     <option value="closed-to-departure">Closed to departure</option>
                   </select>
                 </div>
-                <div className="flex items-center gap-2 pb-0.5">
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
                   <Button onClick={applyBulkChanges} size="sm" className="h-8 gap-1.5 text-[11px]">
                     <Wand2 className="h-3.5 w-3.5" />
-                    Apply to visible rows
+                    Apply to visible range
                   </Button>
                   <Button onClick={resetBulkInputs} variant="outline" size="sm" className="h-8 gap-1.5 text-[11px]">
                     <Check className="h-3.5 w-3.5" />
                     Reset bulk
                   </Button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button onClick={discardCalendarChanges} variant="outline" size="sm" className="h-8 gap-1.5 text-[11px]" disabled={!isDirty}>
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Discard changes
+                  </Button>
+                  <Button onClick={saveCalendarChanges} size="sm" className="h-8 gap-1.5 text-[11px]" disabled={!isDirty}>
+                    <Save className="h-3.5 w-3.5" />
+                    Save changes
+                  </Button>
+                  <span className="text-[11px] text-muted-foreground">
+                    {isDirty ? 'Unsaved changes' : savedAt ? `Saved ${formatDistanceToNow(new Date(savedAt), { addSuffix: true })}` : 'No pending changes'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -616,7 +690,7 @@ export default function OverviewPage() {
                         const state = calendarState[snapshot.id];
                         return (
                           <td key={snapshot.id} className="border-l border-border/50 px-2 py-3">
-                            <div className="space-y-2 rounded-lg border border-border/60 bg-background p-2.5">
+                            <div className={cn('space-y-2 rounded-lg border p-2.5', cellToneByStatus[state?.availabilityStatus ?? 'unknown'])}>
                               <div>
                                 <label className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Inventory</label>
                                 <input

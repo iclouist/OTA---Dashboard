@@ -2,12 +2,12 @@
 
 import { cn } from '@/lib/utils';
 import { StatusBadge } from './status-badge';
-import type { Evidence } from '@/lib/types';
+import type { EvidenceItem } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
 import { ExternalLink } from 'lucide-react';
 
 interface EvidenceCardProps {
-  evidence: Evidence;
+  evidence: EvidenceItem;
   onClick?: () => void;
   className?: string;
 }
@@ -43,12 +43,12 @@ export function EvidenceCard({ evidence, onClick, className }: EvidenceCardProps
         </p>
 
         <div className="mt-1.5 flex flex-wrap gap-1">
-          {Object.entries(evidence.extractedData).slice(0, 2).map(([key, value]) => (
+          {Object.entries(evidence.extractedFields).slice(0, 2).map(([key, value]) => (
             <span
               key={key}
               className="inline-flex rounded bg-muted px-1 py-0.5 text-[9px] text-muted-foreground"
             >
-              {key}: {value}
+              {key}: {String(value)}
             </span>
           ))}
         </div>
@@ -65,7 +65,7 @@ export function EvidenceCard({ evidence, onClick, className }: EvidenceCardProps
 
 // Inline evidence row for tables
 interface EvidenceRowProps {
-  evidence: Evidence;
+  evidence: EvidenceItem;
   onClick?: () => void;
   className?: string;
 }

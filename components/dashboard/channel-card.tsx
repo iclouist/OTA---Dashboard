@@ -2,12 +2,20 @@
 
 import { cn } from '@/lib/utils';
 import { StatusDot } from './status-badge';
-import type { Channel } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
 import { ChevronRight } from 'lucide-react';
 
+type ChannelCardModel = {
+  name: string;
+  status: 'healthy' | 'warning' | 'critical' | 'unknown';
+  propertiesTracked: number;
+  successRate: number;
+  activeIssues: number;
+  lastScrape: string;
+};
+
 interface ChannelCardProps {
-  channel: Channel;
+  channel: ChannelCardModel;
   onClick?: () => void;
   className?: string;
 }
@@ -71,7 +79,7 @@ export function ChannelCard({ channel, onClick, className }: ChannelCardProps) {
 
 // Inline channel row for lists
 interface ChannelRowProps {
-  channel: Channel;
+  channel: ChannelCardModel;
   onClick?: () => void;
   className?: string;
 }

@@ -7,6 +7,13 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Prefer canonical property label display without ad-hoc manual truncation.
+ */
+export function formatPropertyLabel(name: string, maxWords = 3): string {
+  return name.split(' ').slice(0, maxWords).join(' ')
+}
+
+/**
  * Format a number as VND currency
  * @param value - The value to format (any currency will be treated as VND equivalent)
  * @param compact - Use compact notation (e.g., ₫45M instead of ₫45,000,000)

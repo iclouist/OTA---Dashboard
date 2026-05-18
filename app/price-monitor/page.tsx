@@ -10,7 +10,7 @@ import { StateBanner } from '@/components/dashboard/state-banner';
 import { priceCaptures, properties, mappingRecords, getMappingsByProperty } from '@/lib/mock-data';
 import type { PriceCapture } from '@/lib/types';
 import { format, formatDistanceToNow } from 'date-fns';
-import { cn, formatVND } from '@/lib/utils';
+import { cn, formatPropertyLabel, formatVND } from '@/lib/utils';
 import {
   Download,
   RefreshCw,
@@ -141,6 +141,11 @@ export default function PriceMonitorPage() {
   const [compareMode, setCompareMode] = React.useState<CompareMode>('all');
   const [expandedClusters, setExpandedClusters] = React.useState<Set<string>>(new Set());
 
+  const activeProperty = React.useMemo(() => {
+    if (!filters.property || filters.property === 'all') return null;
+    return properties.find((property) => property.id === filters.property) ?? null;
+  }, [filters.property]);
+
   const filteredRecords = React.useMemo(() => {
     let records = priceCaptures.filter((record) => {
       if (filters.search) {
@@ -254,7 +259,8 @@ export default function PriceMonitorPage() {
     const highConfidence = filteredRecords.filter((r) => r.sourceConfidence === 'high').length;
     const missingEvidence = filteredRecords.filter((r) => r.evidenceStatus === 'missing').length;
     const staleEvidence = filteredRecords.filter((r) => r.evidenceStatus === 'stale').length;
-    return { total, noAlert, critical, highConfidence, missingEvidence, staleEvidence, clusterCount: clusters.length };
+    const roomTypes = new Set(filteredRecords.map((r) => `${r.propertyId}:${r.roomType}`)).size;
+    return { total, noAlert, critical, highConfidence, missingEvidence, staleEvidence, clusterCount: clusters.length, roomTypes };
   }, [filteredRecords, clusters]);
 
   // Find related captures for the drawer
@@ -369,7 +375,7 @@ export default function PriceMonitorPage() {
           onChange={(id, value) => setFilters((prev) => ({ ...prev, [id]: value }))}
           onClear={() => setFilters({})}
           resultCount={viewMode === 'cluster' ? clusters.length : filteredRecords.length}
-          activeLabel={viewMode === 'cluster' ? 'Capture clusters' : 'Capture rows'}
+          activeLabel={activeProperty ? formatPropertyLabel(activeProperty.name, 4) : viewMode === 'cluster' ? 'Capture clusters' : 'Capture rows'}
         >
           {/* View Mode Toggle */}
           <div className="flex items-center rounded-md border border-border bg-muted/30">
@@ -425,6 +431,18 @@ export default function PriceMonitorPage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {activeProperty && (
+            <>
+              <ToolbarSeparator />
+              <div className="flex items-center gap-3">
+                <PageMetaItem label="Property" value={formatPropertyLabel(activeProperty.name, 4)} />
+                <PageMetaItem label="Room types" value={activeProperty.rooms.length} />
+                <PageMetaItem label="Captures" value={filteredRecords.length} />
+                <PageMetaItem label="Compared rooms" value={stats.roomTypes} />
+              </div>
+            </>
+          )}
 
           <ToolbarSeparator />
 
@@ -494,7 +512,7 @@ export default function PriceMonitorPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <p className="text-[12px] font-semibold text-foreground truncate">
-                                {cluster.propertyName.split(' ').slice(0, 3).join(' ')}
+                                {formatPropertyLabel(cluster.propertyName, 3)}
                               </p>
                               <span className="text-[10px] text-muted-foreground">·</span>
                               <p className="text-[11px] text-muted-foreground truncate">{cluster.roomType}</p>
@@ -727,7 +745,7 @@ export default function PriceMonitorPage() {
                           )}
                         </td>
                         <td className="px-3 py-2.5 text-[12px] font-medium text-foreground">
-                          {pc.propertyName.split(' ').slice(0, 3).join(' ')}
+                          {formatPropertyLabel(pc.propertyName, 3)}
                         </td>
                         <td className="px-2 py-2.5 text-[12px] text-foreground">{pc.channelName}</td>
                         <td className="px-2 py-2.5">
@@ -799,6 +817,9 @@ export default function PriceMonitorPage() {
                     <SheetTitle className="text-[15px] font-semibold text-foreground">
                       {selectedCapture.propertyName}
                     </SheetTitle>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Room {selectedCapture.roomType} · {selectedCapture.channelName} · {selectedCapture.stayDate}
+                    </p>
                     <p className="mt-1.5 flex items-center gap-2 text-[12px] text-muted-foreground">
                       <span className="font-medium">{selectedCapture.channelName}</span>
                       <span className="text-border">·</span>

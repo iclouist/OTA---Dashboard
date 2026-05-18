@@ -6,7 +6,7 @@ import { FilterBar, FilterConfig, ToolbarSeparator } from '@/components/dashboar
 import { StatusBadge } from '@/components/dashboard/status-badge';
 import { KPICard } from '@/components/dashboard/kpi-card';
 import { InlineKPI } from '@/components/dashboard/kpi-card';
-import { bookingEvents, properties } from '@/lib/mock-data';
+import { bookingEvents, properties, getPropertyLabel } from '@/lib/mock-data';
 import type { BookingEvent } from '@/lib/types';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn, formatVND } from '@/lib/utils';
@@ -54,6 +54,18 @@ const filterConfig: FilterConfig[] = [
 export default function BookingsPage() {
   const [filters, setFilters] = React.useState<Record<string, string>>({});
   const [selectedBooking, setSelectedBooking] = React.useState<BookingEvent | null>(null);
+
+  const propertySummary = React.useMemo(() => {
+    if (!filters.property || filters.property === 'all') return null;
+    const property = properties.find((item) => item.id === filters.property);
+    if (!property) return null;
+    return {
+      id: property.id,
+      name: property.name,
+      bookings: bookingEvents.filter((booking) => booking.propertyId === property.id).length,
+      channels: property.activeOTAChannels.length,
+    };
+  }, [filters.property]);
 
   const filteredBookings = React.useMemo(() => {
     return bookingEvents.filter((booking) => {
@@ -113,6 +125,14 @@ export default function BookingsPage() {
           onChange={(id, value) => setFilters((prev) => ({ ...prev, [id]: value }))}
           onClear={() => setFilters({})}
         >
+          {propertySummary && (
+            <>
+              <ToolbarSeparator />
+              <InlineKPI label="Property" value={propertySummary.name} />
+              <InlineKPI label="Bookings" value={propertySummary.bookings} />
+              <InlineKPI label="Channels" value={propertySummary.channels} />
+            </>
+          )}
           <ToolbarSeparator />
           <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-[11px]">
             <Download className="h-3.5 w-3.5" />
@@ -151,7 +171,7 @@ export default function BookingsPage() {
                         {formatDistanceToNow(new Date(b.eventTime), { addSuffix: false })}
                       </td>
                       <td className="px-2 py-1.5 text-[11px] font-medium text-foreground">
-                        {b.propertyName.split(' ').slice(0, 2).join(' ')}
+                        {getPropertyLabel(b.propertyId)}
                       </td>
                       <td className="px-2 py-1.5 text-[11px] text-muted-foreground">{b.channelName}</td>
                       <td className="px-2 py-1.5 text-[11px] font-mono text-muted-foreground">{b.bookingRef}</td>
@@ -195,7 +215,7 @@ export default function BookingsPage() {
           {selectedBooking && (
             <div className="flex flex-col">
               <div className="border-b border-border px-4 py-3">
-                <p className="text-[13px] font-medium text-foreground">{selectedBooking.propertyName}</p>
+                <p className="text-[13px] font-medium text-foreground">{getPropertyLabel(selectedBooking.propertyId)}</p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
                   {selectedBooking.channelName} · {selectedBooking.bookingRef}
                 </p>
@@ -212,6 +232,7 @@ export default function BookingsPage() {
                   ['Check-in', format(new Date(selectedBooking.checkIn), 'MMM d, yyyy')],
                   ['Check-out', format(new Date(selectedBooking.checkOut), 'MMM d, yyyy')],
                   ['Room Nights', String(selectedBooking.roomNights)],
+                  ['Property', getPropertyLabel(selectedBooking.propertyId)],
                   ['Room Type', selectedBooking.roomType || '-'],
                   ['Guest', selectedBooking.guestName || 'Not available'],
                 ].map(([label, value]) => (

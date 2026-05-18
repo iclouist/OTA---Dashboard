@@ -5,10 +5,10 @@ import { DashboardLayout } from '@/components/dashboard/layout';
 import { FilterBar, FilterConfig, ToolbarSeparator } from '@/components/dashboard/filter-bar';
 import { StatusBadge, SeverityBar } from '@/components/dashboard/status-badge';
 import { InlineKPI } from '@/components/dashboard/kpi-card';
-import { alerts, properties } from '@/lib/mock-data';
+import { alerts, properties, getPropertyLabel } from '@/lib/mock-data';
 import type { Alert } from '@/lib/types';
 import { formatDistanceToNow, format } from 'date-fns';
-import { Check, Eye, Clock } from 'lucide-react';
+import { Check, Eye, Clock, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +20,12 @@ import {
 
 const filterConfig: FilterConfig[] = [
   { id: 'search', label: 'Search', type: 'search', placeholder: 'Search alerts...' },
+  {
+    id: 'property',
+    label: 'Property',
+    type: 'select',
+    options: properties.map((p) => ({ value: p.id, label: p.name })),
+  },
   {
     id: 'severity',
     label: 'Severity',
@@ -60,10 +66,14 @@ const severityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2,
 
 export default function AlertsPage() {
   const [filters, setFilters] = React.useState<Record<string, string>>({});
+  const [localAlerts, setLocalAlerts] = React.useState<Alert[]>(alerts);
   const [selectedAlert, setSelectedAlert] = React.useState<Alert | null>(null);
 
   const filteredAlerts = React.useMemo(() => {
-    const filtered = alerts.filter((alert) => {
+    const filtered = localAlerts.filter((alert) => {
+      if (filters.property && filters.property !== 'all' && alert.propertyId !== filters.property) {
+        return false;
+      }
       if (filters.search) {
         const search = filters.search.toLowerCase();
         if (
@@ -91,15 +101,32 @@ export default function AlertsPage() {
       if (severityDiff !== 0) return severityDiff;
       return new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime();
     });
-  }, [filters]);
+  }, [filters, localAlerts]);
 
   const stats = React.useMemo(() => {
-    const active = alerts.filter((a) => a.status === 'active').length;
-    const critical = alerts.filter((a) => a.severity === 'critical' && a.status === 'active').length;
-    const high = alerts.filter((a) => a.severity === 'high' && a.status === 'active').length;
-    const acknowledged = alerts.filter((a) => a.status === 'acknowledged').length;
-    return { active, critical, high, acknowledged };
-  }, []);
+    const active = localAlerts.filter((a) => a.status === 'active').length;
+    const critical = localAlerts.filter((a) => a.severity === 'critical' && a.status === 'active').length;
+    const high = localAlerts.filter((a) => a.severity === 'high' && a.status === 'active').length;
+    const acknowledged = localAlerts.filter((a) => a.status === 'acknowledged').length;
+    const resolved = localAlerts.filter((a) => a.status === 'resolved').length;
+    return { active, critical, high, acknowledged, resolved };
+  }, [localAlerts]);
+
+  const updateAlertStatus = (alertId: string, status: Alert['status']) => {
+    setLocalAlerts((prev) => prev.map((alert) => (alert.id === alertId ? { ...alert, status } : alert)));
+    setSelectedAlert((prev) => (prev && prev.id === alertId ? { ...prev, status } : prev));
+  };
+
+  const clearResolvedAlerts = () => {
+    setLocalAlerts((prev) => prev.filter((alert) => alert.status !== 'resolved'));
+    setSelectedAlert((prev) => (prev?.status === 'resolved' ? null : prev));
+  };
+
+  const acknowledgeAllVisible = () => {
+    const visibleIds = new Set(filteredAlerts.filter((alert) => alert.status === 'active').map((alert) => alert.id));
+    setLocalAlerts((prev) => prev.map((alert) => (visibleIds.has(alert.id) ? { ...alert, status: 'acknowledged' } : alert)));
+    setSelectedAlert((prev) => (prev && visibleIds.has(prev.id) ? { ...prev, status: 'acknowledged' } : prev));
+  };
 
   return (
     <DashboardLayout>
@@ -115,11 +142,16 @@ export default function AlertsPage() {
             <InlineKPI label="Critical" value={stats.critical} status={stats.critical > 0 ? 'critical' : 'default'} />
             <InlineKPI label="High" value={stats.high} status={stats.high > 0 ? 'warning' : 'default'} />
             <InlineKPI label="Ack" value={stats.acknowledged} />
+            <InlineKPI label="Resolved" value={stats.resolved} status="success" />
           </div>
           <ToolbarSeparator />
-          <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-[11px]">
+          <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-[11px]" onClick={acknowledgeAllVisible}>
             <Check className="h-3.5 w-3.5" />
-            Acknowledge All
+            Acknowledge Visible
+          </Button>
+          <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-[11px]" onClick={clearResolvedAlerts}>
+            <Trash2 className="h-3.5 w-3.5" />
+            Clear Resolved
           </Button>
         </FilterBar>
 
@@ -199,7 +231,7 @@ export default function AlertsPage() {
 
               <div className="border-b border-border">
                 {[
-                  ['Property', selectedAlert.propertyName],
+                  ['Property', getPropertyLabel(selectedAlert.propertyId)],
                   ...(selectedAlert.channelName ? [['Channel', selectedAlert.channelName]] : []),
                   ['Alert Type', selectedAlert.alertType.replace(/-/g, ' ')],
                   ['First Seen', format(new Date(selectedAlert.firstSeen), 'MMM d, HH:mm')],
@@ -215,7 +247,7 @@ export default function AlertsPage() {
 
               <div className="flex gap-2 p-4">
                 {selectedAlert.status === 'active' && (
-                  <Button variant="outline" size="sm" className="h-7 flex-1 gap-1.5 text-[11px]">
+                  <Button variant="outline" size="sm" className="h-7 flex-1 gap-1.5 text-[11px]" onClick={() => updateAlertStatus(selectedAlert.id, 'acknowledged')}>
                     <Clock className="h-3.5 w-3.5" />
                     Acknowledge
                   </Button>
@@ -225,7 +257,7 @@ export default function AlertsPage() {
                   View Property
                 </Button>
                 {selectedAlert.status !== 'resolved' && (
-                  <Button size="sm" className="h-7 flex-1 gap-1.5 text-[11px]">
+                  <Button size="sm" className="h-7 flex-1 gap-1.5 text-[11px]" onClick={() => updateAlertStatus(selectedAlert.id, 'resolved')}>
                     <Check className="h-3.5 w-3.5" />
                     Resolve
                   </Button>

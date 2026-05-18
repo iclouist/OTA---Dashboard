@@ -322,8 +322,16 @@ export function getPropertyById(id: string): Property | undefined {
   return properties.find((p) => p.id === id);
 }
 
+export function getPropertyLabel(propertyId: string): string {
+  return getPropertyById(propertyId)?.name ?? 'Unknown Property';
+}
+
 export function getBookingsByProperty(propertyId: string): BookingEvent[] {
   return bookingEvents.filter((b) => b.propertyId === propertyId);
+}
+
+export function getBookingsByPropertyIds(propertyIds: string[]): BookingEvent[] {
+  return bookingEvents.filter((b) => propertyIds.includes(b.propertyId));
 }
 
 export function getPriceCapturesByProperty(propertyId: string): PriceCapture[] {
@@ -332,6 +340,10 @@ export function getPriceCapturesByProperty(propertyId: string): PriceCapture[] {
 
 export function getAlertsByProperty(propertyId: string): Alert[] {
   return alerts.filter((a) => a.propertyId === propertyId);
+}
+
+export function getAlertsByPropertyIds(propertyIds: string[]): Alert[] {
+  return alerts.filter((a) => propertyIds.includes(a.propertyId));
 }
 
 export function getEvidenceByProperty(propertyId: string): EvidenceItem[] {

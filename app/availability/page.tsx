@@ -10,6 +10,7 @@ import {
   ChannelSellabilityMatrix,
   ActionableIssuesList,
 } from '@/components/dashboard/availability';
+import { FilterBar, type FilterConfig } from '@/components/dashboard/filter-bar';
 import { PageHeader, PageMetaItem } from '@/components/dashboard/page-header';
 import { SectionHeader } from '@/components/dashboard/section-header';
 import { StateBanner } from '@/components/dashboard/state-banner';
@@ -44,8 +45,42 @@ const savedViews = [
 
 type SavedViewId = (typeof savedViews)[number]['id'];
 
+const issueFilters: FilterConfig[] = [
+  {
+    id: 'search',
+    label: 'Search',
+    type: 'search',
+    placeholder: 'Search property or channel...',
+  },
+  {
+    id: 'severity',
+    label: 'Severity',
+    type: 'select',
+    options: [
+      { value: 'critical', label: 'Critical' },
+      { value: 'high', label: 'High' },
+      { value: 'medium', label: 'Medium' },
+      { value: 'low', label: 'Low' },
+    ],
+  },
+  {
+    id: 'status',
+    label: 'Status',
+    type: 'select',
+    options: [
+      { value: 'active', label: 'Active' },
+      { value: 'acknowledged', label: 'Acknowledged' },
+    ],
+  },
+];
+
 export default function AvailabilityPage() {
   const [activeView, setActiveView] = React.useState<SavedViewId>('urgent');
+  const [issueFilterValues, setIssueFilterValues] = React.useState<Record<string, string>>({
+    search: '',
+    severity: 'all',
+    status: 'all',
+  });
   const criticalIssues = sellabilityIssues.filter(i => i.severity === 'critical' && i.status === 'active');
   const highIssues = sellabilityIssues.filter(i => i.severity === 'high' && i.status === 'active');
   const mediumIssues = sellabilityIssues.filter(i => i.severity === 'medium' && i.status === 'active');
@@ -83,11 +118,27 @@ export default function AvailabilityPage() {
     }
   }, [activeView]);
 
+  const queueFilteredIssues = React.useMemo(() => {
+    const search = issueFilterValues.search.trim().toLowerCase();
+
+    return filteredIssues.filter((issue) => {
+      const matchesSearch =
+        !search ||
+        issue.propertyName.toLowerCase().includes(search) ||
+        issue.channelName?.toLowerCase().includes(search) ||
+        issue.title.toLowerCase().includes(search);
+      const matchesSeverity = issueFilterValues.severity === 'all' || issue.severity === issueFilterValues.severity;
+      const matchesStatus = issueFilterValues.status === 'all' || issue.status === issueFilterValues.status;
+
+      return matchesSearch && matchesSeverity && matchesStatus;
+    });
+  }, [filteredIssues, issueFilterValues]);
+
   const activeViewMeta = React.useMemo(() => {
     const current = savedViews.find((view) => view.id === activeView) ?? savedViews[0];
     return {
       ...current,
-      count: filteredIssues.filter((issue) => issue.status === 'active').length,
+      count: queueFilteredIssues.filter((issue) => issue.status === 'active').length,
       emptyTitle:
         activeView === 'sync'
           ? 'No sync watchlist issues right now'
@@ -119,7 +170,7 @@ export default function AvailabilityPage() {
             ? 'Property × OTA inventory and closure pressure'
             : 'Property × OTA sellability for urgent blockers',
     };
-  }, [activeView, filteredIssues]);
+  }, [activeView, queueFilteredIssues]);
   
   // Use dynamic rolling dates
   const rollingDates = getRollingDates(14);
@@ -262,6 +313,18 @@ export default function AvailabilityPage() {
     matrixSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleIssueFilterChange = (id: string, value: string) => {
+    setIssueFilterValues((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const clearIssueFilters = () => {
+    setIssueFilterValues({
+      search: '',
+      severity: 'all',
+      status: 'all',
+    });
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -373,25 +436,51 @@ export default function AvailabilityPage() {
         </section>
 
         <section ref={issuesSectionRef} className="px-5">
-          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-            <SectionHeader
-              title="Issue queue"
-              description="Triage the highest-impact availability problems before reviewing the full matrix."
-              badge={<span className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning">{activeIssues.length} active</span>}
-              actions={
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="h-8 gap-1.5 text-[11px]">
-                    <Filter className="h-3.5 w-3.5" />
-                    Filter queue
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-8 gap-1.5 text-[11px]" onClick={handleOpenMatrix}>
-                    <LayoutGrid className="h-3.5 w-3.5" />
-                    Open matrix
-                  </Button>
-                </div>
-              }
-            />
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="rounded-xl border border-border bg-card shadow-sm">
+            <div className="p-4">
+              <SectionHeader
+                title="Issue queue"
+                description="Triage the highest-impact availability problems before reviewing the full matrix."
+                badge={<span className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning">{activeIssues.length} active</span>}
+                actions={
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-[11px]" onClick={handleOpenMatrix}>
+                      <LayoutGrid className="h-3.5 w-3.5" />
+                      Open matrix
+                    </Button>
+                  </div>
+                }
+              />
+            </div>
+            <FilterBar
+              filters={issueFilters}
+              values={issueFilterValues}
+              onChange={handleIssueFilterChange}
+              onClear={clearIssueFilters}
+              activeLabel={activeViewMeta.label}
+              resultCount={queueFilteredIssues.length}
+            >
+              <Button
+                variant={issueFilterValues.severity === 'critical' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2 text-[11px]"
+                onClick={() => handleIssueFilterChange('severity', issueFilterValues.severity === 'critical' ? 'all' : 'critical')}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                Critical only
+              </Button>
+              <Button
+                variant={issueFilterValues.status === 'active' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2 text-[11px]"
+                onClick={() => handleIssueFilterChange('status', issueFilterValues.status === 'active' ? 'all' : 'active')}
+              >
+                <Clock3 className="h-3 w-3" />
+                Active only
+              </Button>
+            </FilterBar>
+            <div className="p-4 pt-4">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div className="rounded-lg border border-critical/30 bg-critical/5 p-3">
                 <div className="flex items-center gap-2 text-critical">
                   <AlertTriangle className="h-4 w-4" />
@@ -415,6 +504,7 @@ export default function AvailabilityPage() {
                 </div>
                 <p className="mt-2 text-2xl font-bold tabular-nums text-info">{mediumIssues.length + highIssues.length}</p>
                 <p className="mt-1 text-[10px] text-muted-foreground">Items that may soon affect bookability or trust.</p>
+              </div>
               </div>
             </div>
           </div>
@@ -442,7 +532,7 @@ export default function AvailabilityPage() {
         {/* Actionable Issues List */}
         <section className="px-5 pb-6">
           <ActionableIssuesList
-            issues={filteredIssues}
+            issues={queueFilteredIssues}
             title={activeViewMeta.label}
             emptyTitle={activeViewMeta.emptyTitle}
           />

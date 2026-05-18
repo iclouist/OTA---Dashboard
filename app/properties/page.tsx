@@ -9,10 +9,10 @@ import { StatusBadge, StatusDot } from '@/components/dashboard/status-badge';
 import { InlineKPI } from '@/components/dashboard/kpi-card';
 import { AddPropertyModal } from '@/components/dashboard/modals';
 import { properties } from '@/lib/mock-data';
-import type { Property } from '@/lib/types';
+import type { Property, PropertyRoomInventory } from '@/lib/types';
 import { Download, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatVND } from '@/lib/utils';
+import { computeRoomSummary, formatVND } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -81,6 +81,34 @@ const columns: Column<Property>[] = [
       <span className="tabular-nums text-muted-foreground">{row.activeOTAChannels.length}</span>
     ),
     className: 'text-center',
+  },
+  {
+    id: 'inventory',
+    header: 'Inventory',
+    width: '160px',
+    cell: (row) => {
+      const summary = computeRoomSummary(row.rooms);
+      if (summary.roomTypeCount === 0) {
+        return <span className="text-[10px] text-muted-foreground italic">No rooms</span>;
+      }
+      const priceLabel =
+        summary.minPrice === summary.maxPrice
+          ? summary.maxPrice.toLocaleString()
+          : `${summary.minPrice.toLocaleString()}–${summary.maxPrice.toLocaleString()}`;
+      return (
+        <div className="flex flex-col leading-tight">
+          <span className="text-[11px] font-medium text-foreground tabular-nums">
+            {summary.totalInventory} rooms
+            <span className="ml-1 text-[10px] font-normal text-muted-foreground">
+              · {summary.roomTypeCount} type{summary.roomTypeCount === 1 ? '' : 's'}
+            </span>
+          </span>
+          <span className="text-[10px] text-muted-foreground tabular-nums">
+            {priceLabel} {row.currency}
+          </span>
+        </div>
+      );
+    },
   },
   {
     id: 'roomNights',
@@ -273,15 +301,22 @@ export default function PropertiesPage() {
         open={showAddProperty}
         onOpenChange={setShowAddProperty}
         onSubmit={(data) => {
+          const rooms: PropertyRoomInventory[] = data.rooms.map((r, idx) => ({
+            id: `rm-${Date.now()}-${idx}`,
+            name: r.name,
+            quantity: r.quantity,
+            sellingPrice: r.sellingPrice,
+            beds: r.beds,
+            capacity: r.capacity,
+            status: 'draft',
+          }));
           const newProperty: Property = {
             id: `prop-${Date.now()}`,
             name: data.name,
             location: data.location,
-            currency: 'VND',
-            roomType: data.roomType,
-            roomCount: data.roomCount,
-            bedsPerRoom: data.bedsPerRoom,
-            capacityPerRoom: data.capacityPerRoom,
+            timezone: data.timezone,
+            currency: data.currency,
+            rooms,
             activeOTAChannels: [],
             roomNightsSold: 0,
             grossRevenue: 0,

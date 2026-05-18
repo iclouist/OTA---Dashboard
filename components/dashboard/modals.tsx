@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { StatusBadge } from './status-badge';
-import { cn } from '@/lib/utils';
+import { cn, computeRoomSummary, validateRoomInventory } from '@/lib/utils';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -31,6 +31,9 @@ import {
   Link2,
   ShieldCheck,
   ImageIcon,
+  Plus,
+  Trash2,
+  BedDouble,
 } from 'lucide-react';
 import type {
   OnboardingStatus,
@@ -40,6 +43,7 @@ import type {
   SourceType,
   SourceConfidence,
   MappingStatus,
+  PropertyRoomInventory,
 } from '@/lib/types';
 
 // ============================================================
@@ -52,146 +56,352 @@ interface AddPropertyModalProps {
   onSubmit?: (data: AddPropertyData) => void;
 }
 
+export interface AddPropertyRoomDraft {
+  name: string;
+  quantity: number;
+  sellingPrice: number;
+  beds: number;
+  capacity: number;
+}
+
 export interface AddPropertyData {
   name: string;
   location: string;
   currency: string;
   timezone: string;
-  roomType: string;
-  roomCount: number;
-  bedsPerRoom: number;
-  capacityPerRoom: number;
+  rooms: AddPropertyRoomDraft[];
   onboardingStatus: OnboardingStatus;
 }
 
+const makeEmptyRoom = (): AddPropertyRoomDraft => ({
+  name: '',
+  quantity: 1,
+  sellingPrice: 0,
+  beds: 1,
+  capacity: 2,
+});
+
+const DEFAULT_ROOM_ROWS = 3;
+
 export function AddPropertyModal({ open, onOpenChange, onSubmit }: AddPropertyModalProps) {
-  const [formData, setFormData] = React.useState<AddPropertyData>({
-    name: '',
-    location: '',
-    currency: 'VND',
-    timezone: 'Asia/Ho_Chi_Minh',
-    roomType: '',
-    roomCount: 1,
-    bedsPerRoom: 1,
-    capacityPerRoom: 2,
-    onboardingStatus: 'draft',
-  });
+  const initialState = React.useMemo<AddPropertyData>(
+    () => ({
+      name: '',
+      location: '',
+      currency: 'VND',
+      timezone: 'Asia/Ho_Chi_Minh',
+      rooms: Array.from({ length: DEFAULT_ROOM_ROWS }, makeEmptyRoom),
+      onboardingStatus: 'draft',
+    }),
+    [],
+  );
+  const [formData, setFormData] = React.useState<AddPropertyData>(initialState);
+  const [submitted, setSubmitted] = React.useState(false);
+
+  const validation = React.useMemo(() => validateRoomInventory(formData.rooms), [formData.rooms]);
+  const summary = React.useMemo(
+    () =>
+      computeRoomSummary(
+        formData.rooms.map((r, idx) => ({
+          id: `draft-${idx}`,
+          name: r.name,
+          quantity: r.quantity,
+          sellingPrice: r.sellingPrice,
+          beds: r.beds,
+          capacity: r.capacity,
+        })),
+      ),
+    [formData.rooms],
+  );
+
+  const updateRoom = (index: number, patch: Partial<AddPropertyRoomDraft>) => {
+    setFormData((prev) => ({
+      ...prev,
+      rooms: prev.rooms.map((r, i) => (i === index ? { ...r, ...patch } : r)),
+    }));
+  };
+
+  const addRoom = () => {
+    setFormData((prev) => ({ ...prev, rooms: [...prev.rooms, makeEmptyRoom()] }));
+  };
+
+  const removeRoom = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      rooms: prev.rooms.length <= 1 ? prev.rooms : prev.rooms.filter((_, i) => i !== index),
+    }));
+  };
+
+  const fieldError = (rowIndex: number, field: string) =>
+    submitted && validation.errors.find((e) => e.rowIndex === rowIndex && e.field === field);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitted(true);
+    if (!formData.name.trim() || !formData.location.trim()) return;
+    if (validation.hasErrors) return;
     onSubmit?.(formData);
     onOpenChange(false);
-    setFormData({ name: '', location: '', currency: 'VND', timezone: 'Asia/Ho_Chi_Minh', roomType: '', roomCount: 1, bedsPerRoom: 1, capacityPerRoom: 2, onboardingStatus: 'draft' });
+    setFormData(initialState);
+    setSubmitted(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[760px] max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-[14px]">Add New Property</DialogTitle>
           <DialogDescription className="text-[12px]">
-            Add a new property to start monitoring OTA prices and booking revenue.
+            Configure property basics and room inventory. Inventory is first-class — every room type is tracked separately.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name" className="text-[11px]">Property Name</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., Grand Marina Resort & Spa"
-                className="h-9 text-[12px]"
-                required
-              />
+          <div className="grid gap-5 py-4">
+            {/* Section A — Property Basics */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px]">A</span>
+                Property Basics
+              </div>
+              <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="name" className="text-[11px]">Property Name</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="e.g., Grand Marina Resort & Spa"
+                    className="h-9 text-[12px]"
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="location" className="text-[11px]">Location</Label>
+                  <Input
+                    id="location"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    placeholder="e.g., Phuket, Thailand"
+                    className="h-9 text-[12px]"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="currency" className="text-[11px]">Currency</Label>
+                    <Select value={formData.currency} onValueChange={(v) => setFormData({ ...formData, currency: v })}>
+                      <SelectTrigger className="h-9 text-[12px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="VND">VND - Vietnamese Dong</SelectItem>
+                        <SelectItem value="THB">THB - Thai Baht</SelectItem>
+                        <SelectItem value="USD">USD - US Dollar</SelectItem>
+                        <SelectItem value="SGD">SGD - Singapore Dollar</SelectItem>
+                        <SelectItem value="MYR">MYR - Malaysian Ringgit</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="timezone" className="text-[11px]">Timezone</Label>
+                    <Select value={formData.timezone} onValueChange={(v) => setFormData({ ...formData, timezone: v })}>
+                      <SelectTrigger className="h-9 text-[12px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Asia/Ho_Chi_Minh">Asia/Ho_Chi_Minh</SelectItem>
+                        <SelectItem value="Asia/Bangkok">Asia/Bangkok</SelectItem>
+                        <SelectItem value="Asia/Singapore">Asia/Singapore</SelectItem>
+                        <SelectItem value="Asia/Makassar">Asia/Makassar</SelectItem>
+                        <SelectItem value="Asia/Kuala_Lumpur">Asia/Kuala_Lumpur</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="text-[11px]">Onboarding Status</Label>
+                    <Select value={formData.onboardingStatus} onValueChange={(v) => setFormData({ ...formData, onboardingStatus: v as OnboardingStatus })}>
+                      <SelectTrigger className="h-9 text-[12px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="mapping-needed">Mapping Needed</SelectItem>
+                        <SelectItem value="email-live">Email Live</SelectItem>
+                        <SelectItem value="price-monitor-live">Price Monitor Live</SelectItem>
+                        <SelectItem value="verification-pending">Verification Pending</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="location" className="text-[11px]">Location</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                placeholder="e.g., Phuket, Thailand"
-                className="h-9 text-[12px]"
-                required
-              />
+
+            {/* Section B — Inventory Rooms */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px]">B</span>
+                  Inventory Rooms
+                  <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[9px] font-medium normal-case tracking-normal text-foreground">
+                    {formData.rooms.length} row{formData.rooms.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <Button type="button" size="sm" variant="outline" className="h-7 gap-1 px-2 text-[11px]" onClick={addRoom}>
+                  <Plus className="h-3 w-3" />
+                  Add Room Type
+                </Button>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/20 p-3">
+                <div className="grid grid-cols-[1.6fr_0.7fr_1fr_0.7fr_0.8fr_32px] items-center gap-2 px-1 pb-2 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span>Room Name</span>
+                  <span>Qty</span>
+                  <span>Selling Price</span>
+                  <span>Beds</span>
+                  <span>Capacity</span>
+                  <span className="sr-only">Remove</span>
+                </div>
+                <div className="space-y-2">
+                  {formData.rooms.map((room, index) => {
+                    const nameErr = fieldError(index, 'name');
+                    const qtyErr = fieldError(index, 'quantity');
+                    const priceErr = fieldError(index, 'sellingPrice');
+                    const bedsErr = fieldError(index, 'beds');
+                    const capErr = fieldError(index, 'capacity');
+                    return (
+                      <div
+                        key={index}
+                        className="grid grid-cols-[1.6fr_0.7fr_1fr_0.7fr_0.8fr_32px] items-start gap-2 rounded-md border border-border/60 bg-card p-2"
+                      >
+                        <div>
+                          <Input
+                            value={room.name}
+                            onChange={(e) => updateRoom(index, { name: e.target.value })}
+                            placeholder={`Room type ${index + 1}`}
+                            className={cn('h-8 text-[12px]', nameErr && 'border-critical')}
+                          />
+                          {nameErr && <p className="mt-1 text-[9px] text-critical">{nameErr.message}</p>}
+                        </div>
+                        <div>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={room.quantity}
+                            onChange={(e) => updateRoom(index, { quantity: parseInt(e.target.value || '0', 10) || 0 })}
+                            className={cn('h-8 text-[12px] tabular-nums', qtyErr && 'border-critical')}
+                          />
+                          {qtyErr && <p className="mt-1 text-[9px] text-critical">{qtyErr.message}</p>}
+                        </div>
+                        <div>
+                          <Input
+                            type="number"
+                            min={0}
+                            step={1000}
+                            value={room.sellingPrice}
+                            onChange={(e) => updateRoom(index, { sellingPrice: parseFloat(e.target.value) || 0 })}
+                            placeholder="0"
+                            className={cn('h-8 text-[12px] tabular-nums', priceErr && 'border-critical')}
+                          />
+                          {priceErr && <p className="mt-1 text-[9px] text-critical">{priceErr.message}</p>}
+                        </div>
+                        <div>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={room.beds}
+                            onChange={(e) => updateRoom(index, { beds: parseInt(e.target.value || '0', 10) || 0 })}
+                            className={cn('h-8 text-[12px] tabular-nums', bedsErr && 'border-critical')}
+                          />
+                          {bedsErr && <p className="mt-1 text-[9px] text-critical">{bedsErr.message}</p>}
+                        </div>
+                        <div>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={room.capacity}
+                            onChange={(e) => updateRoom(index, { capacity: parseInt(e.target.value || '0', 10) || 0 })}
+                            className={cn('h-8 text-[12px] tabular-nums', capErr && 'border-critical')}
+                          />
+                          {capErr && <p className="mt-1 text-[9px] text-critical">{capErr.message}</p>}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-critical"
+                          onClick={() => removeRoom(index)}
+                          disabled={formData.rooms.length <= 1}
+                          aria-label={`Remove room row ${index + 1}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-2">
-                <Label htmlFor="currency" className="text-[11px]">Currency</Label>
-                <Select value={formData.currency} onValueChange={(v) => setFormData({ ...formData, currency: v })}>
-                  <SelectTrigger className="h-9 text-[12px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="VND">VND - Vietnamese Dong</SelectItem>
-                  </SelectContent>
-                </Select>
+
+            {/* Section C — Setup Summary / Readiness */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px]">C</span>
+                Setup Summary
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="timezone" className="text-[11px]">Timezone</Label>
-                <Select value={formData.timezone} onValueChange={(v) => setFormData({ ...formData, timezone: v })}>
-                  <SelectTrigger className="h-9 text-[12px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Asia/Ho_Chi_Minh">Asia/Ho_Chi_Minh</SelectItem>
-                    <SelectItem value="Asia/Bangkok">Asia/Bangkok</SelectItem>
-                    <SelectItem value="Asia/Singapore">Asia/Singapore</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="rounded-lg border border-info/30 bg-info/5 p-3">
+                <div className="grid grid-cols-4 gap-3">
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase text-muted-foreground">Room Types</p>
+                    <p className="mt-0.5 text-[14px] font-semibold tabular-nums text-foreground">{summary.roomTypeCount}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase text-muted-foreground">Total Inventory</p>
+                    <p className="mt-0.5 text-[14px] font-semibold tabular-nums text-foreground">{summary.totalInventory}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase text-muted-foreground">Price Range</p>
+                    <p className="mt-0.5 text-[14px] font-semibold tabular-nums text-foreground">
+                      {summary.minPrice === summary.maxPrice
+                        ? summary.maxPrice.toLocaleString()
+                        : `${summary.minPrice.toLocaleString()}–${summary.maxPrice.toLocaleString()}`}
+                      <span className="ml-1 text-[10px] font-normal text-muted-foreground">{formData.currency}</span>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase text-muted-foreground">Avg Capacity</p>
+                    <p className="mt-0.5 text-[14px] font-semibold tabular-nums text-foreground">{summary.avgCapacity} pax</p>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-2">
-                <Label htmlFor="roomType" className="text-[11px]">Primary Room Type</Label>
-                <Input
-                  id="roomType"
-                  value={formData.roomType}
-                  onChange={(e) => setFormData({ ...formData, roomType: e.target.value })}
-                  placeholder="e.g., Deluxe Double"
-                  className="h-9 text-[12px]"
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label className="text-[11px]">Initial Onboarding Status</Label>
-                <Select value={formData.onboardingStatus} onValueChange={(v) => setFormData({ ...formData, onboardingStatus: v as OnboardingStatus })}>
-                  <SelectTrigger className="h-9 text-[12px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="mapping-needed">Mapping Needed</SelectItem>
-                    <SelectItem value="email-live">Email Live</SelectItem>
-                    <SelectItem value="price-monitor-live">Price Monitor Live</SelectItem>
-                    <SelectItem value="verification-pending">Verification Pending</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="grid gap-2">
-                <Label htmlFor="roomCount" className="text-[11px]">Room Count</Label>
-                <Input id="roomCount" type="number" min={1} value={formData.roomCount} onChange={(e) => setFormData({ ...formData, roomCount: parseInt(e.target.value || '1', 10) || 1 })} className="h-9 text-[12px]" required />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="bedsPerRoom" className="text-[11px]">Beds / Room</Label>
-                <Input id="bedsPerRoom" type="number" min={1} value={formData.bedsPerRoom} onChange={(e) => setFormData({ ...formData, bedsPerRoom: parseInt(e.target.value || '1', 10) || 1 })} className="h-9 text-[12px]" required />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="capacityPerRoom" className="text-[11px]">Capacity / Room</Label>
-                <Input id="capacityPerRoom" type="number" min={1} value={formData.capacityPerRoom} onChange={(e) => setFormData({ ...formData, capacityPerRoom: parseInt(e.target.value || '2', 10) || 2 })} className="h-9 text-[12px]" required />
-              </div>
+
+              {(submitted && validation.hasErrors) || validation.warnings.length > 0 ? (
+                <div className="space-y-1.5">
+                  {submitted && validation.hasErrors && (
+                    <div className="flex items-start gap-2 rounded-md border border-critical/30 bg-critical/5 px-3 py-2 text-[11px] text-critical">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                      <span>{validation.errors.length} field issue(s) found in room inventory. Fix highlighted rows to continue.</span>
+                    </div>
+                  )}
+                  {validation.warnings.map((w, i) => (
+                    <div key={i} className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-[11px] text-warning">
+                      <Info className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                      <span>{w}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-start gap-2 rounded-md border border-success/30 bg-success/5 px-3 py-2 text-[11px] text-success">
+                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                  <span>Inventory is ready. {summary.totalInventory} rooms across {summary.roomTypeCount} type(s) will be created.</span>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="h-8 text-[11px]">
               Cancel
             </Button>
-            <Button type="submit" className="h-8 text-[11px]">
+            <Button type="submit" className="h-8 text-[11px]" disabled={submitted && validation.hasErrors}>
               Add Property
             </Button>
           </DialogFooter>

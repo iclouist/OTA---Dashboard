@@ -19,6 +19,8 @@ import type { SellabilityIssue } from '@/lib/types';
 interface ActionableIssuesListProps {
   issues: SellabilityIssue[];
   maxItems?: number;
+  title?: string;
+  emptyTitle?: string;
 }
 
 function getIssueAction(issue: SellabilityIssue): { label: string; icon: React.ReactNode; href?: string } {
@@ -40,7 +42,12 @@ function getIssueAction(issue: SellabilityIssue): { label: string; icon: React.R
   }
 }
 
-export function ActionableIssuesList({ issues, maxItems = 10 }: ActionableIssuesListProps) {
+export function ActionableIssuesList({
+  issues,
+  maxItems = 10,
+  title = 'Sellability Issues',
+  emptyTitle = 'No sellability issues detected',
+}: ActionableIssuesListProps) {
   const sortedIssues = [...issues]
     .filter(i => i.status === 'active' || i.status === 'acknowledged')
     .sort((a, b) => {
@@ -61,7 +68,7 @@ export function ActionableIssuesList({ issues, maxItems = 10 }: ActionableIssues
             "h-4 w-4",
             criticalCount > 0 ? "text-critical" : highCount > 0 ? "text-warning" : "text-muted-foreground"
           )} />
-          <span className="text-[13px] font-semibold text-foreground">Sellability Issues</span>
+          <span className="text-[13px] font-semibold text-foreground">{title}</span>
           {activeCount > 0 && (
             <span className={cn(
               "rounded-full px-2 py-0.5 text-[10px] font-semibold",
@@ -77,7 +84,7 @@ export function ActionableIssuesList({ issues, maxItems = 10 }: ActionableIssues
         {sortedIssues.length === 0 ? (
           <div className="flex items-center justify-center gap-2 py-12 text-[11px] text-success">
             <CheckCircle2 className="h-5 w-5" />
-            <span className="font-medium">No sellability issues detected</span>
+            <span className="font-medium">{emptyTitle}</span>
           </div>
         ) : (
           <div className="divide-y divide-border/30">

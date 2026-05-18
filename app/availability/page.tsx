@@ -40,9 +40,12 @@ const savedViews = [
     label: 'Inventory pressure',
     description: 'Spot low inventory and closures across the next 14 days.',
   },
-];
+] as const;
+
+type SavedViewId = (typeof savedViews)[number]['id'];
 
 export default function AvailabilityPage() {
+  const [activeView, setActiveView] = React.useState<SavedViewId>('urgent');
   const criticalIssues = sellabilityIssues.filter(i => i.severity === 'critical' && i.status === 'active');
   const highIssues = sellabilityIssues.filter(i => i.severity === 'high' && i.status === 'active');
   const mediumIssues = sellabilityIssues.filter(i => i.severity === 'medium' && i.status === 'active');
@@ -52,6 +55,47 @@ export default function AvailabilityPage() {
   const freshChannels = channelAvailabilityStatus.filter(c => c.syncStatus === 'fresh').length;
   const totalChannels = channelAvailabilityStatus.length;
   const activeIssues = sellabilityIssues.filter(i => i.status === 'active');
+
+  const filteredIssues = React.useMemo(() => {
+    switch (activeView) {
+      case 'sync':
+        return sellabilityIssues.filter(
+          (issue) =>
+            (issue.status === 'active' || issue.status === 'acknowledged') &&
+            (issue.issueType === 'sync-stale' || issue.issueType === 'channel-mismatch')
+        );
+      case 'inventory':
+        return sellabilityIssues.filter(
+          (issue) =>
+            (issue.status === 'active' || issue.status === 'acknowledged') &&
+            (issue.issueType === 'channel-closed' ||
+              issue.issueType === 'inventory-missing' ||
+              issue.issueType === 'room-sold-out' ||
+              issue.issueType === 'restriction-blocking')
+        );
+      case 'urgent':
+      default:
+        return sellabilityIssues.filter(
+          (issue) =>
+            (issue.status === 'active' || issue.status === 'acknowledged') &&
+            (issue.severity === 'critical' || issue.severity === 'high')
+        );
+    }
+  }, [activeView]);
+
+  const activeViewMeta = React.useMemo(() => {
+    const current = savedViews.find((view) => view.id === activeView) ?? savedViews[0];
+    return {
+      ...current,
+      count: filteredIssues.filter((issue) => issue.status === 'active').length,
+      emptyTitle:
+        activeView === 'sync'
+          ? 'No sync watchlist issues right now'
+          : activeView === 'inventory'
+            ? 'No inventory pressure issues right now'
+            : 'No urgent sellability issues right now',
+    };
+  }, [activeView, filteredIssues]);
   
   // Use dynamic rolling dates
   const rollingDates = getRollingDates(14);
@@ -158,11 +202,15 @@ export default function AvailabilityPage() {
                   badge={<span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{savedViews.length}</span>}
                 />
                 <div className="mt-4 space-y-2.5">
-                  {savedViews.map((view, index) => (
+                  {savedViews.map((view, index) => {
+                    const isActive = activeView === view.id;
+
+                    return (
                     <button
                       key={view.id}
                       type="button"
-                      className="w-full rounded-lg border border-border/70 bg-background px-3 py-3 text-left transition-colors hover:bg-muted/30"
+                      onClick={() => setActiveView(view.id)}
+                      className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${isActive ? 'border-info/40 bg-info/5 ring-1 ring-info/20' : 'border-border/70 bg-background hover:bg-muted/30'}`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -174,7 +222,7 @@ export default function AvailabilityPage() {
                         </span>
                       </div>
                     </button>
-                  ))}
+                  )})}
                 </div>
               </div>
 
@@ -277,7 +325,11 @@ export default function AvailabilityPage() {
 
         {/* Actionable Issues List */}
         <section className="px-5 pb-6">
-          <ActionableIssuesList issues={sellabilityIssues} />
+          <ActionableIssuesList
+            issues={filteredIssues}
+            title={activeViewMeta.label}
+            emptyTitle={activeViewMeta.emptyTitle}
+          />
         </section>
       </div>
     </DashboardLayout>

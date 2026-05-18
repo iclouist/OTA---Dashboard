@@ -5,6 +5,8 @@ import { DashboardLayout } from '@/components/dashboard/layout';
 import { FilterBar, FilterConfig, ToolbarSeparator } from '@/components/dashboard/filter-bar';
 import { StatusBadge, StatusDot } from '@/components/dashboard/status-badge';
 import { AddPriceCaptureModal } from '@/components/dashboard/modals';
+import { PageHeader, PageMetaItem } from '@/components/dashboard/page-header';
+import { StateBanner } from '@/components/dashboard/state-banner';
 import { priceCaptures, properties, mappingRecords, getMappingsByProperty } from '@/lib/mock-data';
 import type { PriceCapture } from '@/lib/types';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -340,38 +342,25 @@ export default function PriceMonitorPage() {
   return (
     <DashboardLayout>
       <div className="flex h-full flex-col">
-        {/* Page Header */}
-        <div className="border-b border-border bg-card/50 px-5 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-[16px] font-semibold text-foreground">Price Monitor</h1>
-              <p className="mt-0.5 text-[12px] text-muted-foreground">
-                Compare OTA display prices against reference rates across channels and devices
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              {/* Quick Stats */}
-              <div className="flex items-center gap-6 border-r border-border pr-4">
-                <div className="text-center">
-                  <p className="text-[18px] font-bold tabular-nums text-foreground">{stats.clusterCount}</p>
-                  <p className="text-[10px] text-muted-foreground">Clusters</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[18px] font-bold tabular-nums text-success">{stats.noAlert}</p>
-                  <p className="text-[10px] text-success">Clean</p>
-                </div>
-                <div className="text-center">
-                  <p className={cn("text-[18px] font-bold tabular-nums", stats.critical > 0 ? "text-critical" : "text-muted-foreground")}>{stats.critical}</p>
-                  <p className="text-[10px] text-critical">Critical</p>
-                </div>
-              </div>
-              <Button size="sm" className="h-8 gap-1.5 px-3 text-[11px]" onClick={() => setShowAddCapture(true)}>
-                <Plus className="h-3.5 w-3.5" />
-                Add Capture
-              </Button>
-            </div>
-          </div>
-        </div>
+        <PageHeader
+          eyebrow="Parity & Evidence"
+          title="Price Monitor"
+          description="Compare OTA display prices against reference rates across channels and devices. Prioritize evidence quality, mapping confidence, and critical mismatches first."
+          meta={
+            <>
+              <PageMetaItem label="Clusters" value={stats.clusterCount} />
+              <PageMetaItem label="Clean" value={stats.noAlert} tone="success" />
+              <PageMetaItem label="Critical" value={stats.critical} tone={stats.critical > 0 ? 'critical' : 'default'} />
+              <PageMetaItem label="High confidence" value={`${stats.highConfidence}/${stats.total}`} />
+            </>
+          }
+          actions={
+            <Button size="sm" className="h-8 gap-1.5 px-3 text-[11px]" onClick={() => setShowAddCapture(true)}>
+              <Plus className="h-3.5 w-3.5" />
+              Add Capture
+            </Button>
+          }
+        />
 
         {/* Enhanced Toolbar */}
         <FilterBar
@@ -379,6 +368,8 @@ export default function PriceMonitorPage() {
           values={filters}
           onChange={(id, value) => setFilters((prev) => ({ ...prev, [id]: value }))}
           onClear={() => setFilters({})}
+          resultCount={viewMode === 'cluster' ? clusters.length : filteredRecords.length}
+          activeLabel={viewMode === 'cluster' ? 'Capture clusters' : 'Capture rows'}
         >
           {/* View Mode Toggle */}
           <div className="flex items-center rounded-md border border-border bg-muted/30">
@@ -450,29 +441,13 @@ export default function PriceMonitorPage() {
 
         {/* Data Quality Warnings */}
         {(stats.missingEvidence > 0 || stats.staleEvidence > 0) && (
-          <div className="flex items-center gap-6 border-b border-border bg-muted/20 px-5 py-2">
-            {stats.missingEvidence > 0 && (
-              <div className="flex items-center gap-2 text-[11px]">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-critical/15">
-                  <XCircle className="h-3 w-3 text-critical" />
-                </div>
-                <span className="text-muted-foreground">Missing evidence:</span>
-                <span className="font-bold text-critical">{stats.missingEvidence}</span>
-              </div>
-            )}
-            {stats.staleEvidence > 0 && (
-              <div className="flex items-center gap-2 text-[11px]">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-warning/15">
-                  <Clock className="h-3 w-3 text-warning" />
-                </div>
-                <span className="text-muted-foreground">Stale evidence:</span>
-                <span className="font-bold text-warning">{stats.staleEvidence}</span>
-              </div>
-            )}
-            <div className="flex-1" />
-            <span className="text-[10px] text-muted-foreground">
-              High confidence: <span className="font-semibold text-foreground">{stats.highConfidence}</span>/{stats.total}
-            </span>
+          <div className="px-5 py-3 border-b border-border bg-background">
+            <StateBanner
+              tone={stats.missingEvidence > 0 ? 'critical' : 'warning'}
+              icon={stats.missingEvidence > 0 ? <XCircle className="h-4 w-4 text-critical" /> : <Clock className="h-4 w-4 text-warning" />}
+              title={stats.missingEvidence > 0 ? 'Evidence gaps need review before trusting parity conclusions.' : 'Some evidence is stale and should be refreshed.'}
+              description={`Missing evidence: ${stats.missingEvidence} · Stale evidence: ${stats.staleEvidence} · High confidence captures: ${stats.highConfidence}/${stats.total}`}
+            />
           </div>
         )}
 

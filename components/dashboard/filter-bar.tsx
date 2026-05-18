@@ -33,6 +33,8 @@ interface FilterBarProps {
   onClear: () => void;
   className?: string;
   children?: React.ReactNode;
+  resultCount?: number;
+  activeLabel?: string;
 }
 
 export function FilterBar({
@@ -42,17 +44,31 @@ export function FilterBar({
   onClear,
   className,
   children,
+  resultCount,
+  activeLabel,
 }: FilterBarProps) {
   const hasActiveFilters = Object.values(values).some((v) => v && v !== 'all');
 
   return (
     <div
       className={cn(
-        'flex items-center gap-1.5 border-b border-border bg-background px-1 py-1.5',
+        'flex flex-wrap items-center gap-1.5 border-b border-border bg-background px-3 py-2',
         className
       )}
     >
-      <SlidersHorizontal className="ml-1 h-3.5 w-3.5 text-muted-foreground" />
+      <div className="mr-1 flex items-center gap-1.5">
+        <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+        {(activeLabel || typeof resultCount === 'number') && (
+          <div className="flex items-center gap-2 text-[11px]">
+            {activeLabel && <span className="font-medium text-foreground">{activeLabel}</span>}
+            {typeof resultCount === 'number' && (
+              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                {resultCount}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
       
       {filters.map((filter) => {
         if (filter.type === 'search') {

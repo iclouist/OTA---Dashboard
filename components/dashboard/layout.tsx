@@ -117,28 +117,32 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <header className="flex h-11 items-center justify-between border-b border-border bg-background px-4">
-          <div className="flex items-center gap-2">
-            <span className="text-[13px] font-medium text-foreground">
+        <header className="flex h-12 items-center justify-between border-b border-border bg-background px-4">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-[12px] font-medium text-muted-foreground">
+              OTA Operations Console
+            </span>
+            <span className="text-muted-foreground/50">/</span>
+            <span className="truncate text-[13px] font-semibold text-foreground">
               {activeNavItem?.name || (pathname === '/settings' ? 'Settings' : 'Dashboard')}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Button variant="ghost" size="sm" className="relative h-7 w-7 p-0">
+            <Button variant="ghost" size="sm" className="relative h-8 w-8 p-0">
               <Bell className="h-4 w-4 text-muted-foreground" />
               <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-critical text-[9px] font-medium text-critical-foreground">
                 {11}
               </span>
             </Button>
-            <div className="ml-1 flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
+            <div className="ml-1 flex h-7 w-7 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
               OP
             </div>
           </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto bg-background p-4">
+        <main className="flex-1 overflow-auto bg-background p-0">
           {children}
         </main>
       </div>

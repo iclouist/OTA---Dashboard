@@ -9,6 +9,8 @@ import {
   ChannelSellabilityMatrix,
   ActionableIssuesList,
 } from '@/components/dashboard/availability';
+import { PageHeader, PageMetaItem } from '@/components/dashboard/page-header';
+import { StateBanner } from '@/components/dashboard/state-banner';
 import {
   availabilitySnapshots,
   channelAvailabilityStatus,
@@ -22,6 +24,8 @@ import type { AvailabilityStatus, SyncFreshnessStatus } from '@/lib/types';
 export default function AvailabilityPage() {
   const criticalIssues = sellabilityIssues.filter(i => i.severity === 'critical' && i.status === 'active');
   const highIssues = sellabilityIssues.filter(i => i.severity === 'high' && i.status === 'active');
+  const blockedChannels = channelAvailabilityStatus.filter(c => !c.sellable).length;
+  const staleChannels = channelAvailabilityStatus.filter(c => c.syncStatus === 'stale' || c.syncStatus === 'missing').length;
   
   // Use dynamic rolling dates
   const rollingDates = getRollingDates(14);
@@ -81,19 +85,47 @@ export default function AvailabilityPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Hero - Critical Issues Banner */}
-        <AvailabilityHero
-          criticalIssues={criticalIssues}
-          highIssues={highIssues}
-          onReviewIssues={handleReviewIssues}
-          onOpenMatrix={handleOpenMatrix}
+        <PageHeader
+          eyebrow="Inventory & Sellability"
+          title="Availability"
+          description="Track channel sellability, spot blocked inventory, and review stale sync before availability issues turn into lost bookings."
+          meta={
+            <>
+              <PageMetaItem label="Properties open" value={availabilityKPIs.propertiesOpen} tone="success" />
+              <PageMetaItem label="At risk" value={availabilityKPIs.propertiesAtRisk} tone={availabilityKPIs.propertiesAtRisk > 0 ? 'critical' : 'default'} />
+              <PageMetaItem label="Blocked channels" value={blockedChannels} tone={blockedChannels > 0 ? 'critical' : 'default'} />
+              <PageMetaItem label="Stale sync" value={staleChannels} tone={staleChannels > 0 ? 'warning' : 'default'} />
+            </>
+          }
         />
 
+        {(criticalIssues.length > 0 || highIssues.length > 0 || staleChannels > 0) && (
+          <div className="px-5">
+            <StateBanner
+              tone={criticalIssues.length > 0 ? 'critical' : 'warning'}
+              title={criticalIssues.length > 0 ? 'Availability issues are actively blocking sellability.' : 'Some availability signals need refresh or review.'}
+              description={`Critical issues: ${criticalIssues.length} · High priority: ${highIssues.length} · Stale or missing sync channels: ${staleChannels}`}
+            />
+          </div>
+        )}
+
+        {/* Hero - Critical Issues Banner */}
+        <div className="px-5">
+          <AvailabilityHero
+            criticalIssues={criticalIssues}
+            highIssues={highIssues}
+            onReviewIssues={handleReviewIssues}
+            onOpenMatrix={handleOpenMatrix}
+          />
+        </div>
+
         {/* KPI Strip */}
-        <AvailabilityKPIStrip kpis={availabilityKPIs} />
+        <div className="px-5">
+          <AvailabilityKPIStrip kpis={availabilityKPIs} />
+        </div>
 
         {/* Availability Matrix */}
-        <section ref={matrixSectionRef}>
+        <section ref={matrixSectionRef} className="px-5">
           <AvailabilityMatrix 
             propertyRoomAvailability={propertyRoomAvailability}
             daysToShow={14}
@@ -101,10 +133,12 @@ export default function AvailabilityPage() {
         </section>
 
         {/* Channel Sellability Matrix */}
-        <ChannelSellabilityMatrix propertyChannelMatrix={propertyChannelMatrix} />
+        <div className="px-5">
+          <ChannelSellabilityMatrix propertyChannelMatrix={propertyChannelMatrix} />
+        </div>
 
         {/* Actionable Issues List */}
-        <section ref={issuesSectionRef}>
+        <section ref={issuesSectionRef} className="px-5 pb-6">
           <ActionableIssuesList issues={sellabilityIssues} />
         </section>
       </div>

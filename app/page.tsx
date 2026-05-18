@@ -2,6 +2,8 @@ import { DashboardLayout } from '@/components/dashboard/layout';
 import { AlertList } from '@/components/dashboard/alert-row';
 import { StatusBadge, StatusDot } from '@/components/dashboard/status-badge';
 import { Button } from '@/components/ui/button';
+import { PageHeader, PageMetaItem } from '@/components/dashboard/page-header';
+import { StateBanner } from '@/components/dashboard/state-banner';
 import {
   overviewKPIs,
   alerts,
@@ -117,34 +119,40 @@ export default function OverviewPage() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        {/* Hero: Critical Alert Banner - only shows when there are urgent issues */}
+        <PageHeader
+          eyebrow="Operations Snapshot"
+          title="Overview"
+          description="Monitor commercial performance, operator risk, and availability health across OTA channels. Use this page to triage what needs action now."
+          meta={
+            <>
+              <PageMetaItem label="Gross booking" value={formatVND(overviewKPIs.grossBookingValue, true)} />
+              <PageMetaItem label="Net revenue" value={formatVND(overviewKPIs.netRevenue, true)} tone="success" />
+              <PageMetaItem label="Critical issues" value={criticalAlerts.length + mismatchSummary.critical} tone={criticalAlerts.length + mismatchSummary.critical > 0 ? 'critical' : 'default'} />
+              <PageMetaItem label="Properties active" value={`${properties.filter(p => p.onboardingStatus === 'active').length}/${overviewKPIs.totalProperties}`} />
+            </>
+          }
+        />
+
         {hasUrgentIssues && (
-          <div className="relative overflow-hidden rounded-lg border border-critical/30 bg-gradient-to-r from-critical/10 via-critical/5 to-transparent p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-critical/20">
-                  <AlertTriangle className="h-5 w-5 text-critical animate-pulse" />
-                </div>
-                <div>
-                  <p className="text-[13px] font-semibold text-foreground">
-                    {criticalAlerts.length} critical issue{criticalAlerts.length !== 1 ? 's' : ''} require immediate attention
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Price parity violations and property health alerts detected
-                  </p>
-                </div>
-              </div>
-              <Link href="/alerts">
-                <Button variant="outline" size="sm" className="border-critical/30 text-critical hover:bg-critical/10">
-                  Review Now
-                </Button>
-              </Link>
-            </div>
+          <div className="px-5">
+            <StateBanner
+              tone="critical"
+              icon={<AlertTriangle className="h-4 w-4 text-critical" />}
+              title={`${criticalAlerts.length} critical issue${criticalAlerts.length !== 1 ? 's' : ''} require immediate attention.`}
+              description="Price parity violations and property health alerts are present. Review active alerts and high-risk properties first."
+              actions={
+                <Link href="/alerts">
+                  <Button variant="outline" size="sm" className="border-critical/30 text-critical hover:bg-critical/10">
+                    Review Now
+                  </Button>
+                </Link>
+              }
+            />
           </div>
         )}
 
         {/* Section 1: Performance Overview */}
-        <section className="space-y-4">
+        <section className="space-y-4 px-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-7 w-7 items-center justify-center rounded-md bg-success/10">
@@ -210,7 +218,7 @@ export default function OverviewPage() {
         </section>
 
         {/* Section 2: Needs Attention Now */}
-        <section className="space-y-4">
+        <section className="space-y-4 px-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className={cn(
@@ -360,7 +368,7 @@ export default function OverviewPage() {
         </section>
 
         {/* Section 2.5: Availability Health */}
-        <section className="space-y-4">
+        <section className="space-y-4 px-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className={cn(

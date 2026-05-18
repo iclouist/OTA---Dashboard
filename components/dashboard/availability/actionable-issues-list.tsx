@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Settings,
   CheckCircle2,
+  SearchX,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/dashboard/status-badge';
@@ -82,9 +83,24 @@ export function ActionableIssuesList({
 
       <div className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
         {sortedIssues.length === 0 ? (
-          <div className="flex items-center justify-center gap-2 py-12 text-[11px] text-success">
-            <CheckCircle2 className="h-5 w-5" />
-            <span className="font-medium">{emptyTitle}</span>
+          <div className="flex flex-col items-center justify-center gap-2 px-6 py-12 text-center">
+            {issues.length === 0 ? (
+              <>
+                <CheckCircle2 className="h-5 w-5 text-success" />
+                <span className="text-[11px] font-medium text-success">{emptyTitle}</span>
+                <p className="max-w-md text-[10px] text-muted-foreground">
+                  The current saved view is clear. Move to another view if you want to review lower-priority availability work.
+                </p>
+              </>
+            ) : (
+              <>
+                <SearchX className="h-5 w-5 text-muted-foreground/70" />
+                <span className="text-[11px] font-medium text-foreground">No issues match the active filters</span>
+                <p className="max-w-md text-[10px] text-muted-foreground">
+                  Try clearing search, severity, or status filters to bring more issues back into the queue.
+                </p>
+              </>
+            )}
           </div>
         ) : (
           <div className="divide-y divide-border/30">

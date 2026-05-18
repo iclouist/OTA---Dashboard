@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Layers, CheckCircle2, XCircle, RefreshCw, AlertCircle } from 'lucide-react';
+import { Layers, CheckCircle2, XCircle, RefreshCw, AlertCircle, SearchX } from 'lucide-react';
 import { StatusDot } from '@/components/dashboard/status-badge';
 import { cn, formatSyncAge } from '@/lib/utils';
 import type { ChannelAvailabilityStatus, Property, SyncFreshnessStatus } from '@/lib/types';
@@ -93,93 +93,103 @@ export function ChannelSellabilityMatrix({
       </div>
 
       <div className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border bg-muted/40">
-                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground w-[180px]">Property</th>
-                <th className="px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground w-[100px]">Channel</th>
-                <th className="px-2 py-2 text-center text-[9px] font-medium text-muted-foreground w-[50px]">Mapped</th>
-                <th className="px-2 py-2 text-center text-[9px] font-medium text-muted-foreground w-[50px]">Inventory</th>
-                <th className="px-2 py-2 text-center text-[9px] font-medium text-muted-foreground w-[50px]">Rate Plan</th>
-                <th className="px-2 py-2 text-center text-[9px] font-medium text-muted-foreground w-[60px]">Sellable</th>
-                <th className="px-2 py-2 text-center text-[9px] font-medium text-muted-foreground w-[45px]">Open</th>
-                <th className="px-2 py-2 text-center text-[9px] font-medium text-muted-foreground w-[45px]">Closed</th>
-                <th className="px-2 py-2 text-center text-[9px] font-medium text-muted-foreground w-[60px]">Sync</th>
-                <th className="px-3 py-2 text-left text-[9px] font-medium text-muted-foreground">Issues</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/30">
-              {propertyChannelMatrix.map(({ property, channels }) => (
-                channels.map((channel, idx) => {
-                  const hasIssues = !channel.sellable || channel.syncStatus !== 'fresh';
-                  
-                  return (
-                    <tr 
-                      key={channel.id} 
-                      className={cn(
-                        "hover:bg-muted/20 transition-colors",
-                        hasIssues && "bg-critical/[0.02]"
-                      )}
-                    >
-                      <td className="px-3 py-2">
-                        {idx === 0 && (
-                          <Link href={`/properties/${property.id}`} className="flex items-center gap-2 hover:text-info transition-colors">
-                            <StatusDot status={property.healthStatus} />
-                            <span className="text-[11px] font-medium text-foreground truncate max-w-[140px]">
-                              {property.name}
-                            </span>
-                          </Link>
+        {propertyChannelMatrix.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 px-6 py-12 text-center">
+            <SearchX className="h-6 w-6 text-muted-foreground/60" />
+            <p className="text-[12px] font-medium text-foreground">No channel rows match this view</p>
+            <p className="max-w-md text-[11px] text-muted-foreground">
+              Switch to another saved view or broaden the queue filters if you want to inspect a wider OTA surface.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border bg-muted/40">
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground w-[180px]">Property</th>
+                  <th className="px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground w-[100px]">Channel</th>
+                  <th className="px-2 py-2 text-center text-[9px] font-medium text-muted-foreground w-[50px]">Mapped</th>
+                  <th className="px-2 py-2 text-center text-[9px] font-medium text-muted-foreground w-[50px]">Inventory</th>
+                  <th className="px-2 py-2 text-center text-[9px] font-medium text-muted-foreground w-[50px]">Rate Plan</th>
+                  <th className="px-2 py-2 text-center text-[9px] font-medium text-muted-foreground w-[60px]">Sellable</th>
+                  <th className="px-2 py-2 text-center text-[9px] font-medium text-muted-foreground w-[45px]">Open</th>
+                  <th className="px-2 py-2 text-center text-[9px] font-medium text-muted-foreground w-[45px]">Closed</th>
+                  <th className="px-2 py-2 text-center text-[9px] font-medium text-muted-foreground w-[60px]">Sync</th>
+                  <th className="px-3 py-2 text-left text-[9px] font-medium text-muted-foreground">Issues</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/30">
+                {propertyChannelMatrix.map(({ property, channels }) => (
+                  channels.map((channel, idx) => {
+                    const hasIssues = !channel.sellable || channel.syncStatus !== 'fresh';
+                    
+                    return (
+                      <tr 
+                        key={channel.id} 
+                        className={cn(
+                          "hover:bg-muted/20 transition-colors",
+                          hasIssues && "bg-critical/[0.02]"
                         )}
-                      </td>
-                      <td className="px-2 py-2">
-                        <span className="text-[11px] text-foreground">{channel.channelName}</span>
-                      </td>
-                      <td className="px-2 py-2 text-center">
-                        <StatusIcon value={channel.mapped} label="Mapped" />
-                      </td>
-                      <td className="px-2 py-2 text-center">
-                        <StatusIcon value={channel.inventoryLoaded} label="Inventory" />
-                      </td>
-                      <td className="px-2 py-2 text-center">
-                        <StatusIcon value={channel.ratePlanActive} label="Rate Plan" />
-                      </td>
-                      <td className="px-2 py-2 text-center">
-                        <SellableBadge sellable={channel.sellable} />
-                      </td>
-                      <td className="px-2 py-2 text-center">
-                        <span className={cn(
-                          "text-[11px] font-semibold tabular-nums",
-                          channel.openDates > 0 ? "text-success" : "text-muted-foreground"
-                        )}>
-                          {channel.openDates}
-                        </span>
-                      </td>
-                      <td className="px-2 py-2 text-center">
-                        <span className={cn(
-                          "text-[11px] font-semibold tabular-nums",
-                          channel.closedDates > 0 ? "text-critical" : "text-muted-foreground"
-                        )}>
-                          {channel.closedDates}
-                        </span>
-                      </td>
-                      <td className="px-2 py-2 text-center">
-                        <SyncBadge status={channel.syncStatus} lastSyncAt={channel.lastSyncAt} />
-                      </td>
-                      <td className="px-3 py-2">
-                        {channel.issueSummary ? (
-                          <span className="text-[10px] text-warning line-clamp-1">{channel.issueSummary}</span>
-                        ) : (
-                          <span className="text-[10px] text-muted-foreground">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      >
+                        <td className="px-3 py-2">
+                          {idx === 0 && (
+                            <Link href={`/properties/${property.id}`} className="flex items-center gap-2 hover:text-info transition-colors">
+                              <StatusDot status={property.healthStatus} />
+                              <span className="text-[11px] font-medium text-foreground truncate max-w-[140px]">
+                                {property.name}
+                              </span>
+                            </Link>
+                          )}
+                        </td>
+                        <td className="px-2 py-2">
+                          <span className="text-[11px] text-foreground">{channel.channelName}</span>
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <StatusIcon value={channel.mapped} label="Mapped" />
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <StatusIcon value={channel.inventoryLoaded} label="Inventory" />
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <StatusIcon value={channel.ratePlanActive} label="Rate Plan" />
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <SellableBadge sellable={channel.sellable} />
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <span className={cn(
+                            "text-[11px] font-semibold tabular-nums",
+                            channel.openDates > 0 ? "text-success" : "text-muted-foreground"
+                          )}>
+                            {channel.openDates}
+                          </span>
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <span className={cn(
+                            "text-[11px] font-semibold tabular-nums",
+                            channel.closedDates > 0 ? "text-critical" : "text-muted-foreground"
+                          )}>
+                            {channel.closedDates}
+                          </span>
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <SyncBadge status={channel.syncStatus} lastSyncAt={channel.lastSyncAt} />
+                        </td>
+                        <td className="px-3 py-2">
+                          {channel.issueSummary ? (
+                            <span className="text-[10px] text-warning line-clamp-1">{channel.issueSummary}</span>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </section>
   );

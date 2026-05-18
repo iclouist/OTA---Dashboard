@@ -11,6 +11,8 @@ interface ChannelSellabilityMatrixProps {
     property: Property;
     channels: ChannelAvailabilityStatus[];
   }>;
+  title?: string;
+  subtitle?: string;
 }
 
 function StatusIcon({ value, label }: { value: boolean; label: string }) {
@@ -49,7 +51,11 @@ function SellableBadge({ sellable }: { sellable: boolean }) {
   );
 }
 
-export function ChannelSellabilityMatrix({ propertyChannelMatrix }: ChannelSellabilityMatrixProps) {
+export function ChannelSellabilityMatrix({
+  propertyChannelMatrix,
+  title = 'Channel Sellability',
+  subtitle = 'Property × OTA status',
+}: ChannelSellabilityMatrixProps) {
   // Compute summary stats
   const allChannels = propertyChannelMatrix.flatMap(p => p.channels);
   const healthyCount = allChannels.filter(c => c.sellable && c.syncStatus === 'fresh').length;
@@ -61,8 +67,8 @@ export function ChannelSellabilityMatrix({ propertyChannelMatrix }: ChannelSella
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Layers className="h-4 w-4 text-muted-foreground" />
-          <span className="text-[13px] font-semibold text-foreground">Channel Sellability</span>
-          <span className="text-[11px] text-muted-foreground">Property × OTA status</span>
+          <span className="text-[13px] font-semibold text-foreground">{title}</span>
+          <span className="text-[11px] text-muted-foreground">{subtitle}</span>
         </div>
         
         {/* Summary pills */}

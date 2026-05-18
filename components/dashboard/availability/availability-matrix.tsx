@@ -25,6 +25,8 @@ interface AvailabilityMatrixProps {
     }>;
   }>;
   daysToShow?: number;
+  title?: string;
+  subtitle?: string;
 }
 
 function getStatusColor(status: AvailabilityStatus): string {
@@ -98,7 +100,12 @@ function StatusCell({
   );
 }
 
-export function AvailabilityMatrix({ propertyRoomAvailability, daysToShow = 14 }: AvailabilityMatrixProps) {
+export function AvailabilityMatrix({
+  propertyRoomAvailability,
+  daysToShow = 14,
+  title = 'Availability Matrix',
+  subtitle,
+}: AvailabilityMatrixProps) {
   const [expandedProperties, setExpandedProperties] = React.useState<Set<string>>(
     new Set(propertyRoomAvailability.map(p => p.property.id))
   );
@@ -122,8 +129,8 @@ export function AvailabilityMatrix({ propertyRoomAvailability, daysToShow = 14 }
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
-          <span className="text-[13px] font-semibold text-foreground">Availability Matrix</span>
-          <span className="text-[11px] text-muted-foreground">Next {daysToShow} days</span>
+          <span className="text-[13px] font-semibold text-foreground">{title}</span>
+          <span className="text-[11px] text-muted-foreground">{subtitle ?? `Next ${daysToShow} days`}</span>
         </div>
         
         {/* Legend */}

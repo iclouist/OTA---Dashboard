@@ -94,6 +94,30 @@ export default function AvailabilityPage() {
           : activeView === 'inventory'
             ? 'No inventory pressure issues right now'
             : 'No urgent sellability issues right now',
+      matrixTitle:
+        activeView === 'sync'
+          ? 'Sync Risk Matrix'
+          : activeView === 'inventory'
+            ? 'Inventory Pressure Matrix'
+            : 'Urgent Availability Matrix',
+      matrixSubtitle:
+        activeView === 'sync'
+          ? 'Channels with stale or missing sync in the next 14 days'
+          : activeView === 'inventory'
+            ? 'Rooms and dates most exposed to closures or low inventory'
+            : 'Properties and channels most likely to block sellability now',
+      channelTitle:
+        activeView === 'sync'
+          ? 'Channel Sync Watchlist'
+          : activeView === 'inventory'
+            ? 'Channel Inventory Exposure'
+            : 'Urgent Channel Sellability',
+      channelSubtitle:
+        activeView === 'sync'
+          ? 'Property × OTA sync freshness and mapping risk'
+          : activeView === 'inventory'
+            ? 'Property × OTA inventory and closure pressure'
+            : 'Property × OTA sellability for urgent blockers',
     };
   }, [activeView, filteredIssues]);
   
@@ -134,11 +158,97 @@ export default function AvailabilityPage() {
     };
   });
 
+  const filteredPropertyRoomAvailability = React.useMemo(() => {
+    switch (activeView) {
+      case 'sync':
+        return propertyRoomAvailability
+          .map((item) => ({
+            ...item,
+            roomTypes: item.roomTypes
+              .map((room) => ({
+                ...room,
+                channels: room.channels.filter((channel) =>
+                  channel.dates.some((day) => day.syncStatus === 'stale' || day.syncStatus === 'missing')
+                ),
+              }))
+              .filter((room) => room.channels.length > 0),
+          }))
+          .filter((item) => item.roomTypes.length > 0);
+      case 'inventory':
+        return propertyRoomAvailability
+          .map((item) => ({
+            ...item,
+            roomTypes: item.roomTypes
+              .map((room) => ({
+                ...room,
+                channels: room.channels.filter((channel) =>
+                  channel.dates.some((day) =>
+                    day.status === 'low-inventory' || day.status === 'closed' || day.status === 'sold-out' || day.status === 'restricted'
+                  )
+                ),
+              }))
+              .filter((room) => room.channels.length > 0),
+          }))
+          .filter((item) => item.roomTypes.length > 0);
+      case 'urgent':
+      default:
+        return propertyRoomAvailability
+          .filter((item) => filteredIssues.some((issue) => issue.propertyId === item.property.id))
+          .map((item) => ({
+            ...item,
+            roomTypes: item.roomTypes.filter((room) =>
+              room.channels.some((channel) =>
+                filteredIssues.some(
+                  (issue) =>
+                    issue.propertyId === item.property.id &&
+                    (!issue.channelName || issue.channelName === channel.channelName)
+                )
+              )
+            ),
+          }));
+    }
+  }, [activeView, propertyRoomAvailability, filteredIssues]);
+
   // Get unique properties with channel status
   const propertyChannelMatrix = properties.map(property => {
     const channels = channelAvailabilityStatus.filter(c => c.propertyId === property.id);
     return { property, channels };
   });
+
+  const filteredPropertyChannelMatrix = React.useMemo(() => {
+    switch (activeView) {
+      case 'sync':
+        return propertyChannelMatrix
+          .map((item) => ({
+            ...item,
+            channels: item.channels.filter((channel) => channel.syncStatus === 'stale' || channel.syncStatus === 'missing'),
+          }))
+          .filter((item) => item.channels.length > 0);
+      case 'inventory':
+        return propertyChannelMatrix
+          .map((item) => ({
+            ...item,
+            channels: item.channels.filter(
+              (channel) => channel.closedDates > 0 || !channel.inventoryLoaded || channel.openDates <= 2 || channel.restrictedDates > 0
+            ),
+          }))
+          .filter((item) => item.channels.length > 0);
+      case 'urgent':
+      default:
+        return propertyChannelMatrix
+          .map((item) => ({
+            ...item,
+            channels: item.channels.filter((channel) =>
+              filteredIssues.some(
+                (issue) =>
+                  issue.propertyId === item.property.id &&
+                  (!issue.channelName || issue.channelName === channel.channelName)
+              )
+            ),
+          }))
+          .filter((item) => item.channels.length > 0);
+    }
+  }, [activeView, propertyChannelMatrix, filteredIssues]);
 
   // Scroll to issues section
   const issuesSectionRef = React.useRef<HTMLElement>(null);
@@ -313,14 +423,20 @@ export default function AvailabilityPage() {
         {/* Availability Matrix */}
         <section ref={matrixSectionRef} className="px-5">
           <AvailabilityMatrix 
-            propertyRoomAvailability={propertyRoomAvailability}
+            propertyRoomAvailability={filteredPropertyRoomAvailability}
             daysToShow={14}
+            title={activeViewMeta.matrixTitle}
+            subtitle={activeViewMeta.matrixSubtitle}
           />
         </section>
 
         {/* Channel Sellability Matrix */}
         <div className="px-5">
-          <ChannelSellabilityMatrix propertyChannelMatrix={propertyChannelMatrix} />
+          <ChannelSellabilityMatrix
+            propertyChannelMatrix={filteredPropertyChannelMatrix}
+            title={activeViewMeta.channelTitle}
+            subtitle={activeViewMeta.channelSubtitle}
+          />
         </div>
 
         {/* Actionable Issues List */}
